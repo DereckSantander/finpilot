@@ -5,6 +5,7 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: '/finpilot/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
@@ -27,8 +28,8 @@ export default defineConfig({
         background_color: '#0b0f11',
         display: 'standalone',
         orientation: 'portrait-primary',
-        start_url: '/',
-        scope: '/',
+        start_url: '/finpilot/',
+        scope: '/finpilot/',
         categories: ['finance', 'productivity'],
         icons: [
           { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
