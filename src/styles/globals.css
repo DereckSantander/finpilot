@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * FinPilot — Design tokens.
+ * Paleta minimalista "bancaria": neutros fríos + primario teal sobrio.
+ * Los colores se declaran como HSL en variables CSS y Tailwind los referencia
+ * con hsl(var(--token)). Cambiar de tema = alternar la clase .dark (ver
+ * ThemeProvider), sin re-render de lógica. Fuentes: Inter con fallback a
+ * system-ui (self-hosting de Inter previsto en Fase 11).
+ */
+
+@layer base {
+  :root {
+    --background: 210 20% 99%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 174 72% 30%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+
+    --accent: 174 60% 94%;
+    --accent-foreground: 175 70% 22%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 152 60% 36%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 38 92% 12%;
+
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 174 72% 30%;
+
+    --sidebar: 210 30% 98%;
+    --sidebar-foreground: 222 30% 20%;
+    --sidebar-accent: 174 60% 94%;
+    --sidebar-border: 214 32% 91%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 200 20% 6%;
+    --foreground: 210 20% 92%;
+
+    --card: 200 18% 9%;
+    --card-foreground: 210 20% 92%;
+
+    --popover: 200 18% 9%;
+    --popover-foreground: 210 20% 92%;
+
+    --primary: 173 70% 42%;
+    --primary-foreground: 200 30% 8%;
+
+    --secondary: 200 15% 15%;
+    --secondary-foreground: 210 20% 92%;
+
+    --muted: 200 15% 14%;
+    --muted-foreground: 210 12% 62%;
+
+    --accent: 200 15% 16%;
+    --accent-foreground: 173 70% 60%;
+
+    --destructive: 0 63% 45%;
+    --destructive-foreground: 0 0% 98%;
+
+    --success: 152 55% 42%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 55%;
+    --warning-foreground: 38 60% 10%;
+
+    --border: 200 12% 18%;
+    --input: 200 12% 18%;
+    --ring: 173 70% 42%;
+
+    --sidebar: 200 20% 8%;
+    --sidebar-foreground: 210 15% 80%;
+    --sidebar-accent: 200 15% 16%;
+    --sidebar-border: 200 12% 16%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html,
+  body,
+  #root {
+    @apply h-full;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings:
+      'rlig' 1,
+      'calt' 1;
+    /* Transición suave al cambiar de tema */
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
+  }
+
+  /* Números tabulares para cifras monetarias alineadas */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Respeta la preferencia de reducir movimiento */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer utilities {
+  /* Scrollbar sutil acorde al tema */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 9999px;
+  }
+}
