@@ -14,6 +14,7 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      base: '/finpilot/',
       registerType: 'prompt',
       injectRegister: null, // el registro se maneja manualmente en src/pwa.ts
       includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon.png', 'robots.txt'],
