@@ -6,7 +6,7 @@ export function AppSplash() {
   return (
     <div className="flex h-full min-h-screen w-full flex-col items-center justify-center gap-4 bg-background">
       <div className="flex items-center gap-3">
-        <img src="/favicon.svg" alt="" className="h-10 w-10" aria-hidden />
+        <img src="/finpilot/favicon.svg" alt="" className="h-10 w-10" aria-hidden />
         <span className="text-2xl font-semibold tracking-tight">{APP_NAME}</span>
       </div>
       <div className="flex items-center gap-2 text-muted-foreground">

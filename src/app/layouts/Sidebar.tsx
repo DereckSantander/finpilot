@@ -13,7 +13,7 @@ export function SidebarNav({ onNavigate }: SidebarNavProps) {
   return (
     <div className="flex h-full flex-col gap-2">
       <div className="flex items-center gap-3 px-5 py-5">
-        <img src="/favicon.svg" alt="" className="h-9 w-9" aria-hidden />
+        <img src="/finpilot/favicon.svg" alt="" className="h-9 w-9" aria-hidden />
         <div className="leading-tight">
           <p className="text-base font-semibold tracking-tight text-sidebar-foreground">
             {APP_NAME}
