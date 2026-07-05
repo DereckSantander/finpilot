@@ -5,15 +5,18 @@ Android. Sin backend, sin autenticación: todos tus datos viven localmente en tu
 (IndexedDB). Presupuestos, ahorros, metas, tarjetas de crédito, patrimonio e inteligencia
 financiera en una interfaz moderna, rápida y con modo claro/oscuro.
 
-> Estado: **Fase 1 completada** (cimientos + núcleo de datos). Ver
-> [`docs/roadmap.md`](docs/roadmap.md).
+> Estado: **Todas las fases (0–12) completadas** — proyecto listo para usar. Dashboard, movimientos,
+> tarjetas, metas, fondo de emergencia, presupuestos, estadísticas, simulador/proyecciones,
+> inteligencia financiera, exportación/respaldos, configuración editable y cobertura de tests
+> (61). Ver [`docs/roadmap.md`](docs/roadmap.md).
 
 ---
 
 ## Tecnologías
 
 React 18 · TypeScript (strict) · Vite 5 · Tailwind CSS · shadcn/ui · Dexie (IndexedDB) ·
-React Router · React Hook Form + Zod · Zustand · Chart.js · vite-plugin-pwa · date-fns.
+React Router · React Hook Form + Zod · Zustand · Chart.js · SheetJS + jsPDF (export) ·
+vite-plugin-pwa · date-fns.
 
 Detalle y justificación de cada elección en [`docs/architecture.md`](docs/architecture.md) y
 [`docs/decisions.md`](docs/decisions.md).
@@ -83,7 +86,7 @@ Arquitectura completa en [`docs/architecture.md`](docs/architecture.md).
 ## Privacidad
 
 FinPilot **no envía datos a ningún servidor**. Toda tu información permanece en tu dispositivo.
-Usa la exportación de respaldo (próximamente) para mover o resguardar tus datos.
+Usa la exportación de respaldo (Configuración → Datos y respaldos) para mover o resguardar tus datos.
 
 ## Licencia
 

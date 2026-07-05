@@ -8,45 +8,38 @@ import { useTheme } from '@/hooks/useTheme';
 import { themeColor } from '@/lib/theme-colors';
 import type { Locale } from '@/types/common';
 
-export interface TrendDatum {
-  label: string;
-  income: number; // centavos
-  expense: number; // centavos
-}
-
-interface BarTrendChartProps {
-  data: TrendDatum[];
+interface ComparisonBarChartProps {
+  labels: string[];
+  values: number[]; // centavos
+  colors?: string[];
   currency: string;
   locale: Locale;
 }
 
-/** Barras agrupadas de ingresos vs gastos por mes. */
-export function BarTrendChart({ data, currency, locale }: BarTrendChartProps) {
+/** Barras verticales de una serie monetaria con un color por barra (comparativas). */
+export function ComparisonBarChart({
+  labels,
+  values,
+  colors,
+  currency,
+  locale,
+}: ComparisonBarChartProps) {
   const { resolvedTheme } = useTheme();
 
-  const chartData = useMemo<ChartData<'bar'>>(
+  const data = useMemo<ChartData<'bar'>>(
     () => ({
-      labels: data.map((d) => d.label),
+      labels,
       datasets: [
         {
-          label: 'Ingresos',
-          data: data.map((d) => d.income),
-          backgroundColor: themeColor('--success', 0.85),
+          data: values,
+          backgroundColor: colors ?? themeColor('--primary', 0.85),
           borderRadius: 6,
-          maxBarThickness: 22,
-        },
-        {
-          label: 'Gastos',
-          data: data.map((d) => d.expense),
-          backgroundColor: themeColor('--destructive', 0.85),
-          borderRadius: 6,
-          maxBarThickness: 22,
+          maxBarThickness: 48,
         },
       ],
     }),
-    // resolvedTheme fuerza recomputar colores (themeColor lee CSS vars) al cambiar de tema.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [data, resolvedTheme],
+    [labels, values, colors, resolvedTheme],
   );
 
   const options = useMemo<ChartOptions<'bar'>>(
@@ -57,11 +50,7 @@ export function BarTrendChart({ data, currency, locale }: BarTrendChartProps) {
         legend: { display: false },
         tooltip: {
           callbacks: {
-            label: (ctx) =>
-              ` ${ctx.dataset.label ?? ''}: ${formatMoney(asCents(ctx.parsed.y ?? 0), {
-                currency,
-                locale,
-              })}`,
+            label: (ctx) => ` ${formatMoney(asCents(ctx.parsed.y ?? 0), { currency, locale })}`,
           },
         },
       },
@@ -85,10 +74,9 @@ export function BarTrendChart({ data, currency, locale }: BarTrendChartProps) {
         },
       },
     }),
-    // resolvedTheme fuerza recomputar colores de ejes/grid al cambiar de tema.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [currency, locale, resolvedTheme],
   );
 
-  return <Bar data={chartData} options={options} />;
+  return <Bar data={data} options={options} />;
 }

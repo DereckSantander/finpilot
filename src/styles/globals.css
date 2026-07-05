@@ -8,7 +8,7 @@
  * Los colores se declaran como HSL en variables CSS y Tailwind los referencia
  * con hsl(var(--token)). Cambiar de tema = alternar la clase .dark (ver
  * ThemeProvider), sin re-render de lógica. Fuentes: Inter con fallback a
- * system-ui (self-hosting de Inter previsto en Fase 11).
+ * system-ui (self-hosting de Inter pendiente; hoy usa el fallback del sistema).
  */
 
 @layer base {

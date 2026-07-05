@@ -1,7 +1,8 @@
 # FinPilot — Roadmap de implementación
 
-> Estado: **PROPUESTA — pendiente de aprobación**. Última actualización: 2026-07-02.
-> Plan por fases. La implementación **no comienza hasta la aprobación** de la arquitectura.
+> Estado: **TODAS LAS FASES COMPLETADAS** (0–12). Última actualización: 2026-07-05.
+> Plan por fases ya ejecutado; el avance se refleja marcando casillas y anotando cambios en
+> [`changelog.md`](./changelog.md).
 
 Orden pensado para tener valor usable cuanto antes y construir sobre cimientos sólidos
 (persistencia y dinero primero, features encima). IDs `Fxx` según [`features.md`](./features.md).
@@ -68,27 +69,53 @@ Orden pensado para tener valor usable cuanto antes y construir sobre cimientos s
       patrimonio, comparación mensual/anual y proyecciones interactivas (8 pestañas). ✔ verificado.
 - **Entregable:** analítica visual.
 
-## Fase 8 · Simulador y proyecciones (F09, F10)
-- Pólizas (interés compuesto, comparación de escenarios) + proyecciones a N años.
-- `lib/calc/interest.ts` con tests de fórmulas.
+## Fase 8 · Simulador y proyecciones (F09, F10) — ✅ COMPLETADA (2026-07-05)
+- [x] Pólizas: simulador interactivo de depósitos a plazo (capital, tasa, plazo, periodicidad)
+      con monto final, intereses, rentabilidad y **tasa efectiva anual**; guardar/editar/eliminar
+      escenarios y **tabla + gráfico comparativos**. ✔ verificado.
+- [x] Proyecciones: patrimonio a 1/3/5/10/15/20 años en **tres escenarios** (conservador 3 %,
+      base 5 %, agresivo 8 %) con ahorro mensual ajustable, gráfico multi-línea y tabla. ✔ verificado.
+- [x] `lib/calc/interest.ts` (interés compuesto/simple) con tests de fórmulas (9 casos).
 - **Entregable:** herramientas de decisión.
 
-## Fase 9 · Inteligencia financiera (F10b)
-- Motor de reglas (Strategy) con las 6 familias de insight del PDF.
-- **Entregable:** análisis automático accionable.
+## Fase 9 · Inteligencia financiera (F10b) — ✅ COMPLETADA (2026-07-05)
+- [x] Motor de reglas (Strategy) en `lib/insights/`: `types`, `engine` (puro) y una regla por
+      familia en `rules/` — comparativa de gasto, oportunidad por categoría, capacidad de ahorro,
+      fondo de emergencia, utilización de tarjetas y avance de metas/ritmo de ahorro.
+- [x] `insights.service` construye el contexto (agregados reales) y ejecuta el motor; hook
+      `useInsights` reactivo; `InsightsPage` + `InsightCard` con severidad/orden. ✔ verificado.
+- [x] Tests del motor (6 casos, una familia cada uno + orden por severidad).
+- **Entregable:** análisis automático accionable con las 6 familias del PDF.
 
-## Fase 10 · Exportación y respaldos (F11)
-- Export Excel/PDF; export/import respaldo JSON versionado; auto-backup.
+## Fase 10 · Exportación y respaldos (F11) — ✅ COMPLETADA (2026-07-05)
+- [x] Export **Excel** (SheetJS) de movimientos + hoja resumen y **PDF** (jsPDF + autotable)
+      con informe financiero (KPIs, metas, tarjetas). Ambas librerías con carga diferida.
+- [x] Export/import de **respaldo JSON versionado**, validado con Zod (`backup.schema`) y
+      restauración atómica (transacción Dexie). Descarga de respaldos guardados.
+- [x] **Auto-backup** al arranque (`maybeRunAutoBackup`) según intervalo y retención de settings.
+- [x] UI en Configuración (`DataBackupCard`): exportar, respaldar, restaurar, toggle de
+      auto-respaldo y lista de respaldos locales. ✔ verificado end-to-end (round-trip).
 - **Entregable:** portabilidad y seguridad de datos.
 
-## Fase 11 · Configuración + pulido PWA (F12, F13)
-- Moneda/locale/tema/categorías; manifest, iconos, offline, prompt de actualización.
-- Animaciones, responsive final, accesibilidad, `prefers-reduced-motion`.
+## Fase 11 · Configuración + pulido PWA (F12, F13) — ✅ COMPLETADA (2026-07-05)
+- [x] **Configuración editable** (`GeneralSettingsCard`): moneda, idioma/formato, inicio de mes,
+      meta de ahorro mensual, objetivos del fondo de emergencia y respaldo automático
+      (frecuencia/retención); validación Zod centralizada en `updateSettings`. ✔ verificado.
+- [x] **Gestión de categorías** (`CategoriesCard`): crear/editar/archivar/eliminar por tipo, con
+      **reasignación** al eliminar categorías en uso (integridad referencial) y set de iconos
+      propio (`categoryIcons`). ✔ verificado (crear/eliminar end-to-end).
+- [x] Tema claro/oscuro (toggle en la cabecera).
+- [x] PWA: manifest, iconos, offline y **prompt de actualización** (`pwa.ts`) ya en su sitio;
+      `prefers-reduced-motion` respetado en `globals.css`.
 - **Entregable:** instalable en Windows/Android, look "bancario".
+- _Pendiente menor:_ self-hosting de la fuente Inter (hoy `system-ui` de fallback).
 
-## Fase 12 · Calidad final
-- Cobertura de tests en `lib/calc`, services y flujos críticos.
-- README completo, instrucciones de instalación, verificación end-to-end.
+## Fase 12 · Calidad final — ✅ COMPLETADA (2026-07-05)
+- [x] Cobertura de tests en `lib/calc` (`projection`), `lib/format`, y **servicios/flujos críticos**
+      con `fake-indexeddb`: `metrics.service` (dashboard, categorías, tendencia, metas, presupuesto,
+      fondo de emergencia) y `categories.service` (reasignación e integridad referencial). 61 tests.
+- [x] Setup de pruebas (`src/test/setup.ts` con `fake-indexeddb`, helper `src/test/seed.ts`).
+- [x] README y documentación al día; verificación end-to-end en navegador de cada fase.
 - **Entregable:** proyecto "listo para usar".
 
 ---
@@ -107,8 +134,12 @@ Orden pensado para tener valor usable cuanto antes y construir sobre cimientos s
 - [x] **Fase 5 · Metas** — completada y verificada (fondo de emergencia dedicado, pendiente).
 - [x] **Fase 7 · Estadísticas** — completada y verificada.
 - [x] **Fondo de emergencia (F06)** — completado y verificado.
-- [ ] Siguiente: pólizas/simulador de depósitos (F09), inteligencia financiera (F10b),
-      exportación/respaldos (F11).
+- [x] **Fase 8 · Simulador de depósitos (F09) y proyecciones (F10)** — completada y verificada.
+- [x] **Fase 9 · Inteligencia financiera (F10b)** — completada y verificada.
+- [x] **Fase 10 · Exportación y respaldos (F11)** — completada y verificada.
+- [x] **Fase 11 · Configuración editable + pulido PWA (F12/F13)** — completada y verificada.
+- [x] **Fase 12 · Calidad final** — completada y verificada (61 tests, servicios cubiertos).
+- ✅ **Todas las fases del roadmap completadas.** Proyecto listo para usar.
 
 _El avance real se refleja marcando casillas aquí y anotando cambios en
 [`changelog.md`](./changelog.md)._

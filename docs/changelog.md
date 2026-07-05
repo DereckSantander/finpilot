@@ -6,6 +6,155 @@
 
 ## [Unreleased]
 
+### Fixed — Borrado de tarjetas de crédito · 2026-07-05
+
+- `deleteCreditCard` fallaba con *"KeyPath creditCardId on object store paymentMethods is not
+  indexed"*: al desvincular los métodos de pago usaba `db.paymentMethods.where('creditCardId')`,
+  pero ese campo **no es un índice** de `paymentMethods` (índices: `id, type, isArchived`), por lo
+  que Dexie lanzaba el error en cada intento de borrado. Se reemplaza por un `.filter()` en memoria
+  (la tabla es diminuta), evitando una migración de esquema. Bug preexistente (previo a las
+  Fases 8–12). Cubierto con `services/creditCards.service.test.ts` (2 tests: desvincula y borra sin
+  historial; bloquea con historial). Verificado end-to-end en navegador.
+
+### Added — Calidad final: cobertura de tests (Fase 12) · 2026-07-05
+
+**Infraestructura de pruebas**
+- `src/test/setup.ts` con `fake-indexeddb/auto` (registrado en `vitest.config` como `setupFiles`)
+  para ejercitar Dexie y los servicios en el entorno `node`. Helper `src/test/seed.ts` (reset +
+  siembra de settings y categorías, e inserción de metas, aportes y presupuestos).
+
+**Nuevos tests (de 39 a 61)**
+- `lib/calc/projection` (5): punto inicial, longitud, acumulación sin/ con rendimiento, monotonía.
+- `lib/format` (6): moneda, decimales, signo, porcentaje, número y notación compacta.
+- `services/metrics.service` (7, con `fake-indexeddb` y `Date` falseado): `dashboardMetricsQuery`
+  (KPIs y deuda de tarjeta), `categoryBreakdownQuery`, `monthlyTrendQuery`, `goalsProgressQuery`,
+  `budgetStatusQuery` y `emergencyFundStatusQuery`.
+- `services/categories.service` (4): reasignación de movimientos al eliminar, bloqueo sin
+  reemplazo, protección de categorías del sistema y borrado limpio de categorías vacías.
+
+**Verificación**
+- `typecheck` ✅ · `lint` ✅ (0) · `test` ✅ (61/61) · `build` ✅ (PWA).
+- Nota: los tests con `fake-indexeddb` falsean **solo `Date`** (no `setTimeout`/`setImmediate`,
+  de los que depende internamente fake-indexeddb) para no colgar a Dexie.
+
+Con esta fase se completan **todas las fases del roadmap (0–12)**.
+
+### Added — Configuración editable + pulido (Fase 11 · F12, F13) · 2026-07-05
+
+**Preferencias editables (`GeneralSettingsCard`)**
+- Formulario para moneda, idioma/formato (`es`/`en`), inicio de mes (1–28), meta de ahorro
+  mensual, objetivos del fondo de emergencia (meses) y respaldo automático (frecuencia/retención),
+  con detección de cambios y guardado.
+- Validación centralizada: `updateSettings` ahora valida el patch con `settingsUpdateSchema`
+  (Zod) antes de escribir, conservando los tipos branded (`Cents`) del patch original.
+
+**Gestión de categorías (`CategoriesCard`)**
+- Crear/editar/archivar/restaurar/eliminar categorías por tipo (gastos/ingresos). Al eliminar una
+  categoría con movimientos, `DeleteCategoryDialog` exige **reasignarlos** a otra del mismo tipo
+  (integridad referencial); las de sistema solo se archivan.
+- `CategoryFormDialog` (nombre, color, icono) y set de iconos propio `settings/lib/categoryIcons`
+  (incluye los de las categorías semilla, con fallback). Hook `useAllCategories`.
+- `SettingsPage` recompuesta: preferencias + categorías + datos/respaldos; tema por el toggle.
+
+**Notas PWA / accesibilidad (ya existentes, verificadas)**
+- Prompt de actualización del service worker (`pwa.ts`), manifest e iconos completos y
+  `prefers-reduced-motion` respetado en `globals.css`.
+
+**Verificación**
+- `typecheck` ✅ · `lint` ✅ (0) · `test` ✅ (39/39) · `build` ✅ (PWA).
+- End-to-end en navegador: editar "Inicio de mes" → 15 y guardar (persistido en IndexedDB,
+  resto de campos intactos); crear categoría "Suscripciones" (no-sistema) y eliminarla vía el
+  diálogo (detecta "sin movimientos" → borrado permanente). Sin errores de consola tras recarga.
+
+### Added — Exportación y respaldos (Fase 10 · F11) · 2026-07-05
+
+**Exportación (`export.service.ts`, carga diferida)**
+- `exportTransactionsXlsx`: libro Excel (SheetJS) con hoja **Resumen** (moneda, totales, balance)
+  y hoja **Movimientos** (fecha, tipo, categoría, método, descripción, monto numérico, etiquetas).
+- `exportReportPdf`: informe PDF (jsPDF + jspdf-autotable) con KPIs, tabla de metas y de tarjetas.
+- `xlsx`, `jspdf` y `jspdf-autotable` se importan de forma diferida (`import()`), por lo que
+  quedan en chunks aparte y no engordan el bundle principal.
+
+**Respaldo / restauración (`backups.service.ts`, `backup.schema.ts`)**
+- `exportBackupFile` (descarga JSON legible), `downloadStoredBackup` (descarga un respaldo local)
+  e `importBackupFile`: valida con Zod (`backupFileSchema`) y **restaura de forma atómica**
+  (una transacción Dexie: limpia y repuebla las 14 tablas de datos; no toca adjuntos ni backups).
+- `createLocalBackup`/`buildBackupEnvelope` refactorizados para compartir la envoltura.
+
+**Auto-respaldo (`autoBackup.service.ts`)**
+- `maybeRunAutoBackup` en el arranque (`main.tsx`): crea un respaldo local si está activo y venció
+  el intervalo, respetando la retención. No bloquea ni propaga errores.
+
+**UI (Configuración)**
+- `DataBackupCard`: exportar Excel/PDF, descargar/restaurar respaldo (con confirmación destructiva),
+  toggle de respaldo automático y lista de respaldos locales (crear, descargar, eliminar).
+  Hook `useBackups`. Helper `lib/download.ts` (`downloadBlob`, `fileDateStamp`).
+
+**Verificación**
+- `typecheck` ✅ · `lint` ✅ (0) · `test` ✅ (39/39, +6 del esquema de respaldo) · `build` ✅
+  (xlsx/jspdf en chunks separados; el bundle principal apenas cambia).
+- End-to-end en navegador: auto-respaldo creado al arrancar; export Excel y PDF sin errores;
+  **round-trip de respaldo** (inyección de archivo → validación → restauración atómica →
+  `transactions` queda exactamente con el registro del archivo). Sin errores de consola.
+
+### Added — Inteligencia financiera (Fase 9 · F10b) · 2026-07-05
+
+**Motor de insights (`lib/insights/`)**
+- Patrón Strategy: `types.ts` (`Insight`, `InsightContext`, severidad y rango), `engine.ts`
+  (`runInsights`, función pura que ejecuta las reglas y ordena por severidad) y una regla por
+  familia en `rules/`: `spendingTrend` (comparativa mes a mes), `categoryOpportunity`
+  (optimización de la mayor categoría), `savingCapacity` (cuánto más ahorrar), `emergencyFund`
+  (cobertura), `cardUtilization` (uso del cupo) y `goalsMomentum` (metas + "vas por buen camino").
+- `insights.service.ts` arma el contexto con los agregados reales (`dashboardMetricsQuery`,
+  `monthlyTrendQuery`, `categoryBreakdownQuery`, `goalsProgressQuery`, `cardsSummaryQuery`,
+  `emergencyFundStatusQuery`) y ejecuta el motor. Hook `useInsights` (reactivo).
+
+**UI**
+- `InsightsPage` (grid de tarjetas con estado vacío) e `InsightCard` (icono/color/orden por
+  severidad y chip de familia).
+
+**Fixed**
+- Gráficos (`AreaChart`, `BarTrendChart`, `ComparisonBarChart`, `ScenarioLineChart`): el callback
+  del eje Y hacía `asCents(Number(value))`, que reventaba cuando Chart.js genera ticks
+  fraccionarios (p. ej. `0.5` con series todas en cero). Se redondea el tick antes de formatear.
+
+**Verificación**
+- `typecheck` ✅ · `lint` ✅ (0) · `test` ✅ (33/33, +6) · `build` ✅ (PWA).
+- End-to-end en navegador con datos reales sembrados: las 6 familias con cifras exactas
+  ("Gastaste un 39 % más en jun" $250 vs $180; gasto medio $286,67 → $860,01 para 3 meses;
+  «Entretenimiento» 58 % → liberar $50/mes hacia «Carro» (faltan $400); meta al 80 %; supera
+  meta de ahorro (sobran $270); "Vas por buen camino" 57 %), ordenadas por severidad. Sin errores
+  de consola tras el fix de gráficos.
+
+### Added — Simulador y proyecciones (Fase 8 · F09, F10) · 2026-07-05
+
+**Cálculo (`lib/calc/interest.ts`)**
+- `simulateDeposit` (monto final, intereses, rentabilidad total y tasa efectiva anual/APY),
+  `depositSchedule` (curva de crecimiento mes a mes) y `periodsPerYear` según periodicidad.
+  Fórmulas: capitalización periódica `A = P(1 + r/n)^(n·t)` y a vencimiento (interés simple)
+  `A = P(1 + r·t)`. Funciones puras con **9 casos de test**.
+
+**Pólizas (F09) — `features/deposits`**
+- `DepositSimulator`: simulador interactivo (capital, tasa anual, plazo en meses, capitalización)
+  con resultados en vivo (monto final, intereses, rentabilidad, APY) y gráfico de crecimiento.
+- `DepositFormDialog` (guardar/editar escenarios, reutilizable desde el simulador) y
+  `ScenarioComparison` (tabla comparativa + `ComparisonBarChart` de monto final, badge "Mejor",
+  editar/eliminar). Hook `useDeposits`. `DepositsPage` reescrita (simulador + escenarios).
+
+**Proyecciones (F10) — `features/projections`**
+- `ProjectionsPage`: patrimonio a 1/3/5/10/15/20 años en tres escenarios (conservador 3 %,
+  base 5 %, agresivo 8 %) con patrimonio inicial y ahorro mensual ajustables, `ScenarioLineChart`
+  multi-línea, tabla por horizonte y nota de supuestos. Hook `useProjectionInputs` (prellena
+  patrimonio actual y ahorro sugerido desde `dashboardMetricsQuery`). Reusa `projectSavings`.
+- Nuevo gráfico genérico `components/charts/ComparisonBarChart` (barras con color por barra).
+
+**Verificación**
+- `typecheck` ✅ · `lint` ✅ (0) · `test` ✅ (27/27, +9) · `build` ✅ (PWA).
+- End-to-end en navegador: simulador $5.000 al 12 % mensual/12 m → monto final $5.634,13,
+  interés $634,13, APY 12,68 %; dos escenarios guardados con tabla y gráfico comparativos.
+  Proyecciones $300/mes → conservador 20 a $98.490,60 / base $123.310,10 / agresivo $176.706,12.
+  Sin errores de consola.
+
 ### Added — Fondo de emergencia (F06) · 2026-07-03
 
 - `emergencyFundStatusQuery` ampliado: además de cobertura en meses y gasto medio, devuelve

@@ -1,60 +1,64 @@
 import { useMemo } from 'react';
-import { Bar } from 'react-chartjs-2';
+import { Line } from 'react-chartjs-2';
 import type { ChartData, ChartOptions } from 'chart.js';
 import '@/components/charts/setup';
 import { formatMoney, formatCompactMoney } from '@/lib/format';
 import { asCents } from '@/types/money';
 import { useTheme } from '@/hooks/useTheme';
-import { themeColor } from '@/lib/theme-colors';
+import { themeColor, withAlpha } from '@/lib/theme-colors';
 import type { Locale } from '@/types/common';
 
-export interface TrendDatum {
+export interface ChartSeries {
   label: string;
-  income: number; // centavos
-  expense: number; // centavos
+  color: string; // HEX
+  values: number[]; // centavos
 }
 
-interface BarTrendChartProps {
-  data: TrendDatum[];
+interface ScenarioLineChartProps {
+  labels: string[];
+  series: ChartSeries[];
   currency: string;
   locale: Locale;
 }
 
-/** Barras agrupadas de ingresos vs gastos por mes. */
-export function BarTrendChart({ data, currency, locale }: BarTrendChartProps) {
+/** Varias series monetarias en un mismo gráfico de líneas (comparación de escenarios). */
+export function ScenarioLineChart({ labels, series, currency, locale }: ScenarioLineChartProps) {
   const { resolvedTheme } = useTheme();
 
-  const chartData = useMemo<ChartData<'bar'>>(
+  const data = useMemo<ChartData<'line'>>(
     () => ({
-      labels: data.map((d) => d.label),
-      datasets: [
-        {
-          label: 'Ingresos',
-          data: data.map((d) => d.income),
-          backgroundColor: themeColor('--success', 0.85),
-          borderRadius: 6,
-          maxBarThickness: 22,
-        },
-        {
-          label: 'Gastos',
-          data: data.map((d) => d.expense),
-          backgroundColor: themeColor('--destructive', 0.85),
-          borderRadius: 6,
-          maxBarThickness: 22,
-        },
-      ],
+      labels,
+      datasets: series.map((s) => ({
+        label: s.label,
+        data: s.values,
+        borderColor: s.color,
+        backgroundColor: withAlpha(s.color, 0.12),
+        fill: false,
+        tension: 0.3,
+        pointRadius: 2,
+        pointHoverRadius: 4,
+      })),
     }),
-    // resolvedTheme fuerza recomputar colores (themeColor lee CSS vars) al cambiar de tema.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [data, resolvedTheme],
+    [labels, series, resolvedTheme],
   );
 
-  const options = useMemo<ChartOptions<'bar'>>(
+  const options = useMemo<ChartOptions<'line'>>(
     () => ({
       responsive: true,
       maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
       plugins: {
-        legend: { display: false },
+        legend: {
+          display: true,
+          position: 'bottom',
+          labels: {
+            usePointStyle: true,
+            boxWidth: 8,
+            font: { size: 11 },
+            color: themeColor('--muted-foreground'),
+          },
+        },
         tooltip: {
           callbacks: {
             label: (ctx) =>
@@ -78,17 +82,16 @@ export function BarTrendChart({ data, currency, locale }: BarTrendChartProps) {
           ticks: {
             color: themeColor('--muted-foreground'),
             font: { size: 11 },
-            maxTicksLimit: 4,
+            maxTicksLimit: 5,
             callback: (value) =>
               formatCompactMoney(asCents(Math.round(Number(value))), currency, locale),
           },
         },
       },
     }),
-    // resolvedTheme fuerza recomputar colores de ejes/grid al cambiar de tema.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [currency, locale, resolvedTheme],
   );
 
-  return <Bar data={chartData} options={options} />;
+  return <Line data={data} options={options} />;
 }

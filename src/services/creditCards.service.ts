@@ -102,10 +102,11 @@ export async function deleteCreditCard(id: CreditCardId): Promise<void> {
           'La tarjeta tiene historial asociado. Archívala en lugar de eliminarla.',
         );
       }
-      // Desvincula métodos de pago que apuntaran a esta tarjeta.
+      // Desvincula métodos de pago que apuntaran a esta tarjeta. `creditCardId`
+      // no es un índice de `paymentMethods`, así que se filtra en memoria (la
+      // tabla es diminuta) en lugar de usar `.where(...)`, que lanzaría.
       await db.paymentMethods
-        .where('creditCardId')
-        .equals(id)
+        .filter((m) => m.creditCardId === id)
         .modify((m) => {
           delete m.creditCardId;
           m.updatedAt = nowIso();

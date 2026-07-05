@@ -1,6 +1,9 @@
 import { db } from '@/db/db';
 import { nowIso } from '@/lib/date';
 import { NotFoundError } from '@/lib/errors';
+import { parseOrThrow } from '@/lib/validation/parse';
+import { settingsUpdateSchema } from '@/lib/validation/settings.schema';
+import { stripUndefined } from '@/lib/object';
 import type { SettingsRow } from '@/db/schema';
 import type { ThemeMode } from '@/types/common';
 
@@ -23,11 +26,14 @@ export async function getSettings(): Promise<SettingsRow> {
   return settings;
 }
 
-/** Actualiza campos de la configuración y refresca `updatedAt`. */
+/** Actualiza campos de la configuración (validados con Zod) y refresca `updatedAt`. */
 export async function updateSettings(
-  patch: Partial<Omit<SettingsRow, 'id' | 'createdAt'>>,
+  patch: Partial<Omit<SettingsRow, 'id' | 'createdAt' | 'updatedAt'>>,
 ): Promise<void> {
-  await db.settings.update(SETTINGS_ID, { ...patch, updatedAt: nowIso() });
+  // Valida la forma (lanza `ValidationError` si algo no cumple); escribimos el
+  // patch original para conservar los tipos branded (p. ej. `Cents`).
+  parseOrThrow(settingsUpdateSchema, patch);
+  await db.settings.update(SETTINGS_ID, { ...stripUndefined(patch), updatedAt: nowIso() });
 }
 
 /** Atajo para persistir la preferencia de tema. */

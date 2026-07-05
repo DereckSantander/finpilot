@@ -66,7 +66,8 @@ export function AreaChart({ labels, values, color, currency, locale }: AreaChart
             color: themeColor('--muted-foreground'),
             font: { size: 11 },
             maxTicksLimit: 4,
-            callback: (value) => formatCompactMoney(asCents(Number(value)), currency, locale),
+            callback: (value) =>
+              formatCompactMoney(asCents(Math.round(Number(value))), currency, locale),
           },
         },
       },

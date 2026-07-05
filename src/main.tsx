@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from '@/app/App';
 import { openDatabase } from '@/db/db';
+import { maybeRunAutoBackup } from '@/services/autoBackup.service';
 import { registerServiceWorker } from '@/pwa';
 import '@/styles/globals.css';
 
@@ -41,6 +42,9 @@ async function bootstrap(): Promise<void> {
   );
 
   registerServiceWorker();
+
+  // Respaldo automático en segundo plano (no bloquea el arranque).
+  void maybeRunAutoBackup();
 }
 
 void bootstrap();
