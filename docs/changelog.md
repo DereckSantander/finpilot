@@ -6,6 +6,20 @@
 
 ## [Unreleased]
 
+### Fixed — Patrimonio: consumo de tarjeta contado dos veces · 2026-07-05
+
+- El patrimonio restaba los consumos con tarjeta **dos veces**: una como gasto (dentro de
+  `available`) y otra como deuda (`cardDebt`). Un consumo de $270 sin pagar bajaba el patrimonio
+  $540 en lugar de $270.
+- Corregido en `metrics.service`: el **dinero disponible** ya no descuenta los consumos con
+  tarjeta (no salen de caja hasta pagarlos); sí descuenta los pagos de tarjeta. Así
+  `patrimonio = ingresos − gastos totales` y pagar la tarjeta no lo altera. Mismo arreglo en
+  `netWorthSeriesQuery` (evolución del patrimonio).
+- Cubierto con test (`metrics.service.test.ts`): consumo $300 sin pagar → disponible $800,
+  deuda $300, patrimonio $500; tras pagar → disponible $500, deuda $0, patrimonio $500 (sin
+  cambio). Verificado end-to-end en navegador (ingreso $1.000, gasto $200, tarjeta $270 →
+  patrimonio $530, disponible $800).
+
 ### Fixed — Borrado de tarjetas de crédito · 2026-07-05
 
 - `deleteCreditCard` fallaba con *"KeyPath creditCardId on object store paymentMethods is not

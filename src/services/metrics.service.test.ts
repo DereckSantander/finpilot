@@ -109,6 +109,53 @@ describe('metrics.service', () => {
     expect(m.cardDebt).toBe(30_000); // 50.000 − 20.000
   });
 
+  it('no descuenta el consumo con tarjeta dos veces en el patrimonio', async () => {
+    const card = 'card-nw' as CreditCardId;
+    await db.creditCards.add({
+      id: card,
+      name: 'Visa',
+      bank: 'Banco',
+      creditLimit: asCents(200_000),
+      cutoffDay: 5,
+      paymentDueDay: 20,
+      color: '#000',
+      isArchived: false,
+      createdAt: '2026-01-01T00:00:00.000Z' as never,
+      updatedAt: '2026-01-01T00:00:00.000Z' as never,
+    });
+    await addTx('income', 100_000, '2026-07-01', INCOME_CAT);
+    await addTx('expense', 20_000, '2026-07-02', EXPENSE_CAT); // gasto en efectivo
+    await createTransaction({
+      type: 'expense',
+      amount: 30_000,
+      date: '2026-07-03',
+      categoryId: EXPENSE_CAT,
+      description: 'Consumo tarjeta (sin pagar)',
+      tags: [],
+      creditCardId: card,
+    });
+
+    const before = await dashboardMetricsQuery(ym('2026-07'));
+    // Efectivo: solo salieron los 20.000 en efectivo (el consumo aún no se paga).
+    expect(before.available).toBe(80_000);
+    expect(before.cardDebt).toBe(30_000);
+    // Patrimonio = efectivo − deuda = 80.000 − 30.000 = 50.000 (= ingresos − gastos).
+    expect(before.netWorth).toBe(50_000);
+
+    // Pagar la tarjeta reduce el efectivo y la deuda, pero NO cambia el patrimonio.
+    await db.creditCardPayments.add({
+      id: 'pay-nw' as never,
+      creditCardId: card,
+      amount: asCents(30_000),
+      date: '2026-07-10' as never,
+      createdAt: '2026-07-10T00:00:00.000Z' as never,
+    });
+    const after = await dashboardMetricsQuery(ym('2026-07'));
+    expect(after.available).toBe(50_000);
+    expect(after.cardDebt).toBe(0);
+    expect(after.netWorth).toBe(50_000);
+  });
+
   it('categoryBreakdownQuery agrega gastos por categoría con su porcentaje', async () => {
     await addTx('expense', 30_000, '2026-03-02', EXPENSE_CAT);
     await addTx('expense', 10_000, '2026-03-03', EXPENSE_CAT);

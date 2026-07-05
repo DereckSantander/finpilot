@@ -66,9 +66,6 @@ export async function dashboardMetricsQuery(yearMonth: YearMonth): Promise<Dashb
   const lifetimeExpense = sumCents(expense.map((t) => t.amount));
   const totalSaved = asCents(Math.max(sumCents(contributions.map((c) => c.amount)), 0));
 
-  // Dinero líquido disponible = flujo neto de caja − lo apartado en metas.
-  const available = asCents(lifetimeIncome - lifetimeExpense - totalSaved);
-
   // Deuda de tarjetas = consumos a crédito − pagos (coherente con el módulo de tarjetas).
   const cardConsumos = sumCents(
     expense.filter((t) => t.creditCardId !== undefined).map((t) => t.amount),
@@ -76,7 +73,13 @@ export async function dashboardMetricsQuery(yearMonth: YearMonth): Promise<Dashb
   const cardPagos = payments.length > 0 ? sumCents(payments.map((p) => p.amount)) : ZERO_CENTS;
   const cardDebt = asCents(Math.max(cardConsumos - cardPagos, 0));
 
-  // Patrimonio = disponible + ahorrado − deuda.
+  // Dinero líquido disponible: un consumo con tarjeta NO sale de la caja hasta que
+  // se paga, por lo que no resta aquí (aparece como deuda); los pagos de tarjeta sí
+  // restan (ahí sale el efectivo). Evita descontar el consumo dos veces.
+  const nonCardExpense = asCents(lifetimeExpense - cardConsumos);
+  const available = asCents(lifetimeIncome - nonCardExpense - cardPagos - totalSaved);
+
+  // Patrimonio = disponible + ahorrado − deuda (equivale a ingresos − gastos totales).
   const netWorth = asCents(available + totalSaved - cardDebt);
 
   return {
@@ -877,14 +880,11 @@ export interface NetWorthPoint {
 
 /**
  * Evolución del patrimonio: patrimonio al cierre de cada uno de los últimos
- * `months` meses (ingresos − gastos − deuda de tarjetas acumulados). Coherente
- * con `dashboardMetricsQuery`.
+ * `months` meses (ingresos − gastos acumulados). Coherente con
+ * `dashboardMetricsQuery` (la deuda de tarjeta ya está incluida en los gastos).
  */
 export async function netWorthSeriesQuery(months = 12): Promise<NetWorthPoint[]> {
-  const [transactions, payments] = await Promise.all([
-    db.transactions.toArray(),
-    db.creditCardPayments.toArray(),
-  ]);
+  const transactions = await db.transactions.toArray();
 
   const anchor = parseISO(`${toYearMonth(todayIso())}-01`);
   const points: NetWorthPoint[] = [];
@@ -900,18 +900,13 @@ export async function netWorthSeriesQuery(months = 12): Promise<NetWorthPoint[]>
     const cumExpense = sumCents(
       transactions.filter((t) => t.type === 'expense' && upTo(t)).map((t) => t.amount),
     );
-    const cardConsumos = sumCents(
-      transactions
-        .filter((t) => t.type === 'expense' && t.creditCardId !== undefined && upTo(t))
-        .map((t) => t.amount),
-    );
-    const cardPayments = sumCents(payments.filter((p) => upTo(p)).map((p) => p.amount));
-    const cardDebt = Math.max(cardConsumos - cardPayments, 0);
 
+    // Patrimonio = ingresos − gastos acumulados. La deuda de tarjeta ya está en
+    // los gastos (el consumo es un gasto); pagarla no altera el patrimonio.
     points.push({
       yearMonth: ym as YearMonth,
       label: format(date, 'LLL', { locale: es }),
-      netWorth: asCents(cumIncome - cumExpense - cardDebt),
+      netWorth: asCents(cumIncome - cumExpense),
     });
   }
   return points;
