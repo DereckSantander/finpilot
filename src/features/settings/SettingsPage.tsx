@@ -2,6 +2,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { ThemeToggle } from '@/app/layouts/ThemeToggle';
 import { GeneralSettingsCard } from '@/features/settings/components/GeneralSettingsCard';
 import { CategoriesCard } from '@/features/settings/components/CategoriesCard';
+import { PaymentMethodsCard } from '@/features/settings/components/PaymentMethodsCard';
 import { DataBackupCard } from '@/features/settings/components/DataBackupCard';
 
 /**
@@ -19,6 +20,7 @@ export function SettingsPage() {
 
       <GeneralSettingsCard />
       <CategoriesCard />
+      <PaymentMethodsCard />
       <DataBackupCard />
     </div>
   );

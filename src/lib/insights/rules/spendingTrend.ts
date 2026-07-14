@@ -9,7 +9,9 @@ import type { Insight, InsightContext } from '@/lib/insights/types';
  */
 export const spendingTrendRule = (ctx: InsightContext): Insight | null => {
   const { trend, settings } = ctx;
-  if (trend.length < 2) return null;
+  // Hacen falta 3 puntos: el mes en curso (parcial, que se descarta) y los dos
+  // meses completos que se comparan entre sí.
+  if (trend.length < 3) return null;
 
   // trend está ordenado ascendente; el último es el mes en curso (parcial).
   const current = trend[trend.length - 2]; // último mes completo

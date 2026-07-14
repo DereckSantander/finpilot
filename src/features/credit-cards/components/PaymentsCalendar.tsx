@@ -1,5 +1,13 @@
 import { useMemo, useState } from 'react';
-import { startOfWeek, addDays, isSameMonth, isToday, parseISO, format } from 'date-fns';
+import {
+  startOfWeek,
+  addDays,
+  isSameMonth,
+  isToday,
+  parseISO,
+  format,
+  getDaysInMonth,
+} from 'date-fns';
 import { CalendarDays } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { MonthNavigator } from '@/features/transactions/components/MonthNavigator';
@@ -27,17 +35,21 @@ export function PaymentsCalendar({ cards }: PaymentsCalendarProps) {
 
   const eventsByDay = useMemo(() => {
     const map = new Map<number, DayEvent[]>();
+    // Un corte el 31 cae el 28/29 en febrero, pero el 31 en julio: se ancla al
+    // último día real del mes mostrado en lugar de recortar todo al 28.
+    const lastDay = getDaysInMonth(parseISO(`${yearMonth}-01`));
     for (const { card } of cards) {
       const push = (day: number, kind: DayEvent['kind']) => {
-        const list = map.get(day) ?? [];
+        const clamped = Math.min(day, lastDay);
+        const list = map.get(clamped) ?? [];
         list.push({ cardId: card.id, cardName: card.name, color: card.color, kind });
-        map.set(day, list);
+        map.set(clamped, list);
       };
-      push(Math.min(card.cutoffDay, 28), 'corte');
-      push(Math.min(card.paymentDueDay, 28), 'pago');
+      push(card.cutoffDay, 'corte');
+      push(card.paymentDueDay, 'pago');
     }
     return map;
-  }, [cards]);
+  }, [cards, yearMonth]);
 
   const cells = useMemo(() => {
     const monthStart = parseISO(`${yearMonth}-01`);

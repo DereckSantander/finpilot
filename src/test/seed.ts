@@ -7,8 +7,19 @@ import type {
   GoalRow,
   GoalContributionRow,
   BudgetRow,
+  CreditCardRow,
+  CreditCardPaymentRow,
+  PaymentMethodRow,
 } from '@/db/schema';
-import type { CategoryId, GoalId, GoalContributionId, BudgetId } from '@/types/ids';
+import type {
+  CategoryId,
+  GoalId,
+  GoalContributionId,
+  BudgetId,
+  CreditCardId,
+  CreditCardPaymentId,
+  PaymentMethodId,
+} from '@/types/ids';
 import type { IsoDate, IsoDateTime, YearMonth } from '@/types/common';
 
 /** Categorías fijas usadas en las pruebas de servicios. */
@@ -105,4 +116,66 @@ export async function addBudget(
     ...(categoryId ? { categoryId } : {}),
   };
   await db.budgets.add(row);
+}
+
+/** Inserta una tarjeta de crédito y devuelve su id. */
+export async function addCard(
+  name: string,
+  opts: {
+    creditLimit?: number;
+    cutoffDay?: number;
+    paymentDueDay?: number;
+    isArchived?: boolean;
+  } = {},
+): Promise<CreditCardId> {
+  const id = newId<CreditCardId>();
+  const row: CreditCardRow = {
+    id,
+    name,
+    bank: 'Banco',
+    creditLimit: asCents(opts.creditLimit ?? 200_000),
+    cutoffDay: opts.cutoffDay ?? 5,
+    paymentDueDay: opts.paymentDueDay ?? 20,
+    color: '#0d9488',
+    isArchived: opts.isArchived ?? false,
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+  await db.creditCards.add(row);
+  return id;
+}
+
+/** Inserta un método de pago, opcionalmente vinculado a una tarjeta. */
+export async function addPaymentMethod(
+  name: string,
+  opts: { type?: PaymentMethodRow['type']; creditCardId?: CreditCardId } = {},
+): Promise<PaymentMethodId> {
+  const id = newId<PaymentMethodId>();
+  const row: PaymentMethodRow = {
+    id,
+    name,
+    type: opts.type ?? 'cash',
+    isArchived: false,
+    createdAt: NOW,
+    updatedAt: NOW,
+    ...(opts.creditCardId ? { creditCardId: opts.creditCardId } : {}),
+  };
+  await db.paymentMethods.add(row);
+  return id;
+}
+
+/** Inserta un pago de tarjeta. */
+export async function addCardPayment(
+  creditCardId: CreditCardId,
+  amount: number,
+  date: string,
+): Promise<void> {
+  const row: CreditCardPaymentRow = {
+    id: newId<CreditCardPaymentId>(),
+    creditCardId,
+    amount: asCents(amount),
+    date: date as IsoDate,
+    createdAt: NOW,
+  };
+  await db.creditCardPayments.add(row);
 }

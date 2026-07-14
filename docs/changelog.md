@@ -6,6 +6,40 @@
 
 ## [Unreleased]
 
+### Fixed — Auditoría de consistencia de cálculos · 2026-07-14
+
+Revisión de la lógica interna tras detectar cifras que no cuadraban entre pantallas. Siete
+correcciones, todas con test:
+
+- **Un gasto con tarjeta no generaba deuda si se registraba desde «Gastos».** El vínculo
+  `PaymentMethodRow.creditCardId` existía en el esquema pero nadie lo usaba: solo el
+  `ConsumoDialog` del detalle de tarjeta marcaba `creditCardId`. Ahora `createTransaction`
+  **deriva la tarjeta del método de pago**, y hay UI para gestionar métodos de pago
+  (`PaymentMethodsCard` en Configuración) y vincularlos a una tarjeta. El mismo gasto ya cuenta
+  igual se registre donde se registre.
+- **No se podía desvincular la tarjeta ni el método al editar** (los campos `undefined` se
+  omitían del patch). `transactionUpdateSchema` acepta ahora `null` explícito y el servicio borra
+  la clave; pasar un gasto de tarjeta a efectivo elimina su deuda. Mismo arreglo en
+  `updatePaymentMethod`.
+- **La deuda del dashboard no coincidía con la suma de las tarjetas**: el dashboard agregaba
+  consumos y pagos en bloque con un único `max(…,0)` y el listado clampaba por tarjeta y excluía
+  archivadas. Nueva fuente de verdad única `cardBalancesQuery()` (clamp por tarjeta, incluye
+  archivadas con saldo) que consumen dashboard, listado e insights.
+- **El día de corte/pago se truncaba al 28** (`Math.min(day, 28)` en `metrics.service` y en
+  `PaymentsCalendar`). Ahora se ancla al último día real del mes: una tarjeta que paga el 30
+  muestra el 30.
+- **El gasto medio del fondo de emergencia incluía el mes en curso** (parcial), hundiendo el
+  promedio a principios de mes e inflando la cobertura. Se promedian los últimos N meses
+  **completos**; si no hay historia, se prorratea el mes en curso por días transcurridos.
+- **El ritmo de ahorro de las metas se promediaba desde el primer aporte**, así que un aporte
+  antiguo y aislado seguía contando como ritmo durante años. Ahora usa una **ventana móvil de 6
+  meses**.
+- **`spendingTrendRule` exigía 2 puntos pero indexaba 3**: con solo dos meses de datos se caía en
+  silencio. Guard corregido a 3.
+
+`SCHEMA_VERSION` sin cambios (los datos existentes siguen siendo válidos; los consumos ya
+registrados conservan su `creditCardId`).
+
 ### Fixed — Patrimonio: consumo de tarjeta contado dos veces · 2026-07-05
 
 - El patrimonio restaba los consumos con tarjeta **dos veces**: una como gasto (dentro de

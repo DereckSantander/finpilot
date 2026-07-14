@@ -43,11 +43,59 @@ export interface DashboardMetrics {
   transactionsCount: number;
 }
 
+export interface CardBalance {
+  consumos: Cents;
+  pagos: Cents;
+  /** Deuda viva de la tarjeta: consumos − pagos, nunca negativa. */
+  balance: Cents;
+}
+
+/**
+ * Saldo por tarjeta a partir de los datos primarios. Es la única fuente de
+ * verdad de la deuda: el dashboard, el listado de tarjetas y los insights la
+ * consumen, de modo que "Deuda" nunca puede discrepar de la suma de tarjetas.
+ * El clamp a cero es *por tarjeta* (una tarjeta sobrepagada no cancela la deuda
+ * de otra) e incluye las archivadas que aún deban dinero.
+ */
+export async function cardBalancesQuery(): Promise<Map<CreditCardId, CardBalance>> {
+  const [consumos, payments] = await Promise.all([
+    db.transactions.filter((t) => t.type === 'expense' && t.creditCardId !== undefined).toArray(),
+    db.creditCardPayments.toArray(),
+  ]);
+
+  const balances = new Map<CreditCardId, { consumos: number; pagos: number }>();
+  const entry = (cardId: CreditCardId) => {
+    const found = balances.get(cardId) ?? { consumos: 0, pagos: 0 };
+    balances.set(cardId, found);
+    return found;
+  };
+
+  for (const tx of consumos) entry(tx.creditCardId as CreditCardId).consumos += tx.amount;
+  for (const payment of payments) entry(payment.creditCardId).pagos += payment.amount;
+
+  return new Map(
+    [...balances.entries()].map(([cardId, { consumos: c, pagos: p }]) => [
+      cardId,
+      {
+        consumos: asCents(c),
+        pagos: asCents(p),
+        balance: asCents(Math.max(c - p, 0)),
+      },
+    ]),
+  );
+}
+
+/** Deuda total de tarjetas = suma de las deudas de cada tarjeta. */
+export function totalCardDebt(balances: Map<CreditCardId, CardBalance>): Cents {
+  return asCents([...balances.values()].reduce((acc, b) => acc + b.balance, 0));
+}
+
 export async function dashboardMetricsQuery(yearMonth: YearMonth): Promise<DashboardMetrics> {
-  const [transactions, contributions, payments] = await Promise.all([
+  const [transactions, contributions, payments, balances] = await Promise.all([
     db.transactions.toArray(),
     db.goalContributions.toArray(),
     db.creditCardPayments.toArray(),
+    cardBalancesQuery(),
   ]);
 
   const income = transactions.filter((t) => t.type === 'income');
@@ -66,21 +114,22 @@ export async function dashboardMetricsQuery(yearMonth: YearMonth): Promise<Dashb
   const lifetimeExpense = sumCents(expense.map((t) => t.amount));
   const totalSaved = asCents(Math.max(sumCents(contributions.map((c) => c.amount)), 0));
 
-  // Deuda de tarjetas = consumos a crédito − pagos (coherente con el módulo de tarjetas).
-  const cardConsumos = sumCents(
-    expense.filter((t) => t.creditCardId !== undefined).map((t) => t.amount),
-  );
-  const cardPagos = payments.length > 0 ? sumCents(payments.map((p) => p.amount)) : ZERO_CENTS;
-  const cardDebt = asCents(Math.max(cardConsumos - cardPagos, 0));
+  // Deuda de tarjetas: la misma que muestra el módulo de tarjetas (por tarjeta).
+  const cardDebt = totalCardDebt(balances);
 
   // Dinero líquido disponible: un consumo con tarjeta NO sale de la caja hasta que
   // se paga, por lo que no resta aquí (aparece como deuda); los pagos de tarjeta sí
   // restan (ahí sale el efectivo). Evita descontar el consumo dos veces.
+  const cardConsumos = sumCents(
+    expense.filter((t) => t.creditCardId !== undefined).map((t) => t.amount),
+  );
+  const cardPagos = payments.length > 0 ? sumCents(payments.map((p) => p.amount)) : ZERO_CENTS;
   const nonCardExpense = asCents(lifetimeExpense - cardConsumos);
   const available = asCents(lifetimeIncome - nonCardExpense - cardPagos - totalSaved);
 
-  // Patrimonio = disponible + ahorrado − deuda (equivale a ingresos − gastos totales).
-  const netWorth = asCents(available + totalSaved - cardDebt);
+  // Patrimonio = ingresos − gastos (el consumo con tarjeta ya es un gasto; pagarla
+  // no altera el patrimonio). Misma definición que `netWorthSeriesQuery`.
+  const netWorth = asCents(lifetimeIncome - lifetimeExpense);
 
   return {
     yearMonth,
@@ -212,13 +261,22 @@ export interface CardSummary {
   isOverLimitWarning: boolean;
 }
 
-/** Próxima ocurrencia mensual de un día (para corte y pago). */
+/**
+ * Próxima ocurrencia mensual de un día (para corte y pago). Si el mes no tiene
+ * ese día (p. ej. el 31 en febrero) se usa el último día del mes, en lugar de
+ * recortar todos los días al 28 como se hacía antes.
+ */
 function nextMonthlyDate(dayOfMonth: number): IsoDate {
   const today = new Date();
-  const day = Math.min(dayOfMonth, 28);
-  let next = new Date(today.getFullYear(), today.getMonth(), day);
+  const onMonth = (year: number, month: number) => {
+    const lastDay = getDaysInMonth(new Date(year, month, 1));
+    return new Date(year, month, Math.min(dayOfMonth, lastDay));
+  };
+
+  let next = onMonth(today.getFullYear(), today.getMonth());
   if (isBefore(next, new Date(today.getFullYear(), today.getMonth(), today.getDate()))) {
-    next = addMonths(next, 1);
+    const following = addMonths(new Date(today.getFullYear(), today.getMonth(), 1), 1);
+    next = onMonth(following.getFullYear(), following.getMonth());
   }
   return format(next, 'yyyy-MM-dd') as IsoDate;
 }
@@ -233,20 +291,16 @@ function daysUntil(iso: IsoDate): number {
  * deriva de los consumos (gastos con `creditCardId`) menos los pagos.
  */
 export async function cardsSummaryQuery(): Promise<CardSummary[]> {
-  const [cards, transactions, payments] = await Promise.all([
-    db.creditCards.filter((c) => !c.isArchived).toArray(),
-    db.transactions.filter((t) => t.type === 'expense' && t.creditCardId !== undefined).toArray(),
-    db.creditCardPayments.toArray(),
-  ]);
+  const [cards, balances] = await Promise.all([db.creditCards.toArray(), cardBalancesQuery()]);
 
-  return cards.map((card) => {
-    const consumos = transactions
-      .filter((t) => t.creditCardId === card.id)
-      .reduce((acc, t) => acc + t.amount, 0);
-    const pagos = payments
-      .filter((p) => p.creditCardId === card.id)
-      .reduce((acc, p) => acc + p.amount, 0);
-    const balance = Math.max(consumos - pagos, 0);
+  // Se listan las activas y, además, las archivadas que aún deban dinero: si no,
+  // su deuda desaparecería del listado pero seguiría contando en el dashboard.
+  const visible = cards.filter(
+    (card) => !card.isArchived || (balances.get(card.id)?.balance ?? 0) > 0,
+  );
+
+  return visible.map((card) => {
+    const balance = balances.get(card.id)?.balance ?? ZERO_CENTS;
     const utilization = card.creditLimit > 0 ? balance / card.creditLimit : 0;
     const dueDate = nextMonthlyDate(card.paymentDueDay);
 
@@ -290,7 +344,7 @@ export async function cardDetailQuery(cardId: CreditCardId): Promise<CardDetail 
   const consumos = txs.filter((t) => t.type === 'expense');
   const consumosTotal = sumCents(consumos.map((t) => t.amount));
   const pagosTotal = payments.length > 0 ? sumCents(payments.map((p) => p.amount)) : ZERO_CENTS;
-  const balance = Math.max(consumosTotal - pagosTotal, 0);
+  const balance = asCents(Math.max(consumosTotal - pagosTotal, 0));
   const ym = toYearMonth(todayIso());
 
   return {
@@ -412,14 +466,24 @@ export async function emergencyFundStatusQuery(months = 3): Promise<EmergencyFun
   ]);
 
   const anchor = parseISO(`${toYearMonth(todayIso())}-01`);
+  const monthTotal = (offset: number) => {
+    const ym = format(addMonths(anchor, offset), 'yyyy-MM');
+    return transactions.filter((t) => t.yearMonth === ym).reduce((acc, t) => acc + t.amount, 0);
+  };
+
+  // Se promedian los últimos `months` meses **completos**: incluir el mes en
+  // curso (parcial) hundía el promedio a principios de mes e inflaba la
+  // cobertura. Si aún no hay historia, se prorratea el mes en curso por los días
+  // transcurridos para no arrancar con un promedio de cero.
   let totalExpense = 0;
-  for (let i = 0; i < months; i += 1) {
-    const ym = format(addMonths(anchor, -i), 'yyyy-MM');
-    totalExpense += transactions
-      .filter((t) => t.yearMonth === ym)
-      .reduce((acc, t) => acc + t.amount, 0);
+  for (let i = 1; i <= months; i += 1) totalExpense += monthTotal(-i);
+
+  let averageMonthlyExpense = asCents(Math.round(totalExpense / months));
+  if (averageMonthlyExpense === 0) {
+    const elapsedDays = Math.max(getDate(new Date()), 1);
+    const daysInMonth = getDaysInMonth(new Date());
+    averageMonthlyExpense = asCents(Math.round((monthTotal(0) / elapsedDays) * daysInMonth));
   }
-  const averageMonthlyExpense = asCents(Math.round(totalExpense / months));
 
   const saved = goal
     ? asCents(
@@ -590,15 +654,30 @@ export interface GoalDetail {
   reached: boolean;
 }
 
-/** Ritmo de ahorro mensual observado desde el primer aporte. */
+/** Meses de la ventana móvil con la que se mide el ritmo de ahorro. */
+const PACE_WINDOW_MONTHS = 6;
+
+/**
+ * Ritmo de ahorro mensual observado en los últimos `PACE_WINDOW_MONTHS` meses.
+ * Antes se promediaba desde el primer aporte, lo que hacía que un aporte antiguo
+ * y aislado siguiera contando como "ritmo" durante años (y que un único aporte
+ * reciente proyectara ese importe como ritmo mensual). La ventana se acorta si la
+ * meta es más joven que la ventana.
+ */
 function monthlyPace(contribs: { date: IsoDate; amount: number }[], saved: number): number {
   if (contribs.length === 0 || saved <= 0) return 0;
+
   const firstDate = contribs.reduce((min, c) => (c.date < min ? c.date : min), contribs[0]!.date);
-  const monthsElapsed = Math.max(
-    differenceInCalendarMonths(new Date(), parseISO(firstDate)) + 1,
-    1,
-  );
-  return Math.round(saved / monthsElapsed);
+  const monthsSinceFirst = differenceInCalendarMonths(new Date(), parseISO(firstDate)) + 1;
+  const window = Math.min(Math.max(monthsSinceFirst, 1), PACE_WINDOW_MONTHS);
+
+  const anchor = parseISO(`${toYearMonth(todayIso())}-01`);
+  const cutoff = format(addMonths(anchor, -(window - 1)), 'yyyy-MM');
+  const recent = contribs
+    .filter((c) => toYearMonth(c.date) >= cutoff)
+    .reduce((acc, c) => acc + c.amount, 0);
+
+  return Math.round(Math.max(recent, 0) / window);
 }
 
 export async function goalDetailQuery(goalId: GoalId): Promise<GoalDetail | undefined> {

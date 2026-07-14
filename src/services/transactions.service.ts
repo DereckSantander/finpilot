@@ -137,8 +137,8 @@ export async function lastUsedPaymentMethodId(): Promise<PaymentMethodId | undef
 
 async function assertReferences(data: {
   categoryId: string;
-  paymentMethodId?: string | undefined;
-  creditCardId?: string | undefined;
+  paymentMethodId?: string | null | undefined;
+  creditCardId?: string | null | undefined;
 }): Promise<void> {
   const category = await db.categories.get(data.categoryId);
   if (!category) throw new NotFoundError('Categoría', data.categoryId);
@@ -152,9 +152,27 @@ async function assertReferences(data: {
   }
 }
 
+/**
+ * Tarjeta asociada a un método de pago (los métodos de tipo `credit` apuntan a
+ * una tarjeta). Es lo que convierte un gasto pagado "con la Visa" en deuda de
+ * esa tarjeta, se registre desde donde se registre.
+ */
+async function cardOfMethod(
+  paymentMethodId: string | null | undefined,
+): Promise<CreditCardId | undefined> {
+  if (!paymentMethodId) return undefined;
+  const method = await db.paymentMethods.get(paymentMethodId);
+  return method?.creditCardId;
+}
+
 export async function createTransaction(input: TransactionCreateInput): Promise<TransactionRow> {
   const data = parseOrThrow(transactionCreateSchema, input);
   const timestamp = nowIso();
+  const creditCardId =
+    data.type === 'expense'
+      ? ((data.creditCardId as CreditCardId | undefined) ??
+        (await cardOfMethod(data.paymentMethodId)))
+      : undefined;
 
   const row: TransactionRow = {
     id: newId<TransactionId>(),
@@ -171,9 +189,7 @@ export async function createTransaction(input: TransactionCreateInput): Promise<
     ...(data.paymentMethodId !== undefined && {
       paymentMethodId: data.paymentMethodId as PaymentMethodId,
     }),
-    ...(data.creditCardId !== undefined && {
-      creditCardId: data.creditCardId as CreditCardId,
-    }),
+    ...(creditCardId !== undefined && { creditCardId }),
     ...(data.notes !== undefined && { notes: data.notes }),
     ...(data.attachmentId !== undefined && {
       attachmentId: data.attachmentId as AttachmentId,
@@ -188,7 +204,7 @@ export async function createTransaction(input: TransactionCreateInput): Promise<
     db.creditCards,
     db.tags,
     async () => {
-      await assertReferences(data);
+      await assertReferences({ ...data, creditCardId });
       await ensureTagsExist(data.tags);
       await db.transactions.add(row);
     },
@@ -217,12 +233,27 @@ export async function createQuickExpense(input: QuickExpenseInput): Promise<Tran
   });
 }
 
+/**
+ * Actualiza un movimiento. `paymentMethodId`/`creditCardId` a `null` los
+ * desvinculan; si cambia el método de pago y no se fija tarjeta explícita, la
+ * tarjeta se rededuce del nuevo método (así un gasto pasa de tarjeta a efectivo
+ * y deja de contar como deuda).
+ */
 export async function updateTransaction(
   id: TransactionId,
   input: TransactionUpdateInput,
 ): Promise<void> {
   const data = parseOrThrow(transactionUpdateSchema, input);
-  await getTransaction(id);
+  const current = await getTransaction(id);
+
+  const type = data.type ?? current.type;
+  let nextCard: CreditCardId | null | undefined;
+  if (data.creditCardId !== undefined) {
+    nextCard = data.creditCardId as CreditCardId | null;
+  } else if (data.paymentMethodId !== undefined) {
+    nextCard = (await cardOfMethod(data.paymentMethodId)) ?? null;
+  }
+  if (type === 'income') nextCard = null;
 
   const patch: Partial<TransactionRow> = {
     updatedAt: nowIso(),
@@ -234,12 +265,6 @@ export async function updateTransaction(
     }),
     ...(data.time !== undefined && { time: data.time }),
     ...(data.categoryId !== undefined && { categoryId: data.categoryId as CategoryId }),
-    ...(data.paymentMethodId !== undefined && {
-      paymentMethodId: data.paymentMethodId as PaymentMethodId,
-    }),
-    ...(data.creditCardId !== undefined && {
-      creditCardId: data.creditCardId as CreditCardId,
-    }),
     ...(data.description !== undefined && { description: data.description }),
     ...(data.notes !== undefined && { notes: data.notes }),
     ...(data.tags !== undefined && { tags: data.tags }),
@@ -248,10 +273,37 @@ export async function updateTransaction(
     }),
   };
 
-  await db.transaction('rw', db.transactions, db.tags, async () => {
-    if (data.tags !== undefined) await ensureTagsExist(data.tags);
-    await db.transactions.update(id, patch);
-  });
+  await db.transaction(
+    'rw',
+    db.transactions,
+    db.categories,
+    db.paymentMethods,
+    db.creditCards,
+    db.tags,
+    async () => {
+      await assertReferences({
+        categoryId: data.categoryId ?? current.categoryId,
+        paymentMethodId: data.paymentMethodId,
+        creditCardId: nextCard,
+      });
+      if (data.tags !== undefined) await ensureTagsExist(data.tags);
+
+      await db.transactions
+        .where('id')
+        .equals(id)
+        .modify((tx) => {
+          Object.assign(tx, patch);
+          if (data.paymentMethodId !== undefined) {
+            if (data.paymentMethodId === null) delete tx.paymentMethodId;
+            else tx.paymentMethodId = data.paymentMethodId as PaymentMethodId;
+          }
+          if (nextCard !== undefined) {
+            if (nextCard === null) delete tx.creditCardId;
+            else tx.creditCardId = nextCard;
+          }
+        });
+    },
+  );
 }
 
 /** Enlaza o desenlaza el comprobante de un movimiento (null = quitar). */

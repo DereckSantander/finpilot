@@ -74,6 +74,9 @@ export function TransactionForm({ type, initial, onSubmitted, onCancel }: Transa
   const symbol = currencySymbol(settings.currency);
   const categories = useCategories(type);
   const paymentMethods = usePaymentMethods();
+  // Los métodos ligados a una tarjeta solo tienen sentido en gastos.
+  const selectableMethods =
+    type === 'expense' ? paymentMethods : paymentMethods.filter((m) => !m.creditCardId);
 
   const {
     control,
@@ -127,6 +130,9 @@ export function TransactionForm({ type, initial, onSubmitted, onCancel }: Transa
 
   const onSubmit = handleSubmit(async (values) => {
     try {
+      const methodId =
+        values.paymentMethodId && values.paymentMethodId !== NONE ? values.paymentMethodId : null;
+
       const base = {
         amount: values.amount,
         date: values.date,
@@ -134,18 +140,20 @@ export function TransactionForm({ type, initial, onSubmitted, onCancel }: Transa
         description: values.description,
         tags: values.tags,
         ...(values.time ? { time: values.time } : {}),
-        ...(values.paymentMethodId && values.paymentMethodId !== NONE
-          ? { paymentMethodId: values.paymentMethodId }
-          : {}),
         ...(values.notes ? { notes: values.notes } : {}),
       };
 
       let transactionId: TransactionId;
       if (initial) {
-        await updateTransaction(initial.id, { type, ...base });
+        // `null` desvincula el método (y con él la tarjeta) al editar.
+        await updateTransaction(initial.id, { type, ...base, paymentMethodId: methodId });
         transactionId = initial.id;
       } else {
-        const created = await createTransaction({ type, ...base });
+        const created = await createTransaction({
+          type,
+          ...base,
+          ...(methodId ? { paymentMethodId: methodId } : {}),
+        });
         transactionId = created.id;
       }
 
@@ -250,15 +258,22 @@ export function TransactionForm({ type, initial, onSubmitted, onCancel }: Transa
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NONE}>Sin método</SelectItem>
-                  {paymentMethods.map((method) => (
+                  {selectableMethods.map((method) => (
                     <SelectItem key={method.id} value={method.id}>
                       {method.name}
+                      {method.creditCardId ? ' · tarjeta' : ''}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             )}
           />
+          {type === 'expense' ? (
+            <p className="text-xs text-muted-foreground">
+              Si eliges un método vinculado a una tarjeta, el gasto se registra como consumo de esa
+              tarjeta y suma a su deuda.
+            </p>
+          ) : null}
         </div>
       </div>
 

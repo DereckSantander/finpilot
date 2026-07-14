@@ -26,9 +26,11 @@ export const paymentMethodCreateSchema = z.object({
   creditCardId: zNonEmptyString.optional(),
 });
 
-export const paymentMethodUpdateSchema = paymentMethodCreateSchema
-  .partial()
-  .extend({ isArchived: z.boolean().optional() });
+/** `creditCardId: null` desvincula la tarjeta del método de pago. */
+export const paymentMethodUpdateSchema = paymentMethodCreateSchema.partial().extend({
+  isArchived: z.boolean().optional(),
+  creditCardId: zNonEmptyString.nullable().optional(),
+});
 
 export const tagCreateSchema = z.object({
   name: zNonEmptyString.max(30, 'Máximo 30 caracteres.'),

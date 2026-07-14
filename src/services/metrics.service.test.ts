@@ -202,11 +202,13 @@ describe('metrics.service', () => {
     expect(item.ratio).toBeCloseTo(0.8, 10);
   });
 
-  it('emergencyFundStatusQuery calcula cobertura y el hito de 3 meses', async () => {
-    // Gasto medio de los últimos 3 meses (may, jun, jul) = 30.000/mes.
+  it('emergencyFundStatusQuery promedia meses completos e ignora el mes en curso', async () => {
+    // Hoy = 2026-07-15. Los 3 meses completos son abr, may y jun: 30.000/mes.
+    // El gasto de julio (mes en curso, parcial) NO debe alterar el promedio.
+    await addTx('expense', 30_000, '2026-04-10', EXPENSE_CAT);
     await addTx('expense', 30_000, '2026-05-10', EXPENSE_CAT);
     await addTx('expense', 30_000, '2026-06-10', EXPENSE_CAT);
-    await addTx('expense', 30_000, '2026-07-10', EXPENSE_CAT);
+    await addTx('expense', 5_000, '2026-07-02', EXPENSE_CAT);
     const fund = await addGoal('Fondo', 0, { isEmergencyFund: true });
     await addContribution(fund, 45_000, '2026-07-01');
 
@@ -218,5 +220,14 @@ describe('metrics.service', () => {
     expect(milestone3.target).toBe(90_000);
     expect(milestone3.percent).toBeCloseTo(0.5, 10);
     expect(milestone3.reached).toBe(false);
+  });
+
+  it('emergencyFundStatusQuery prorratea el mes en curso si no hay historia', async () => {
+    // Sin meses completos, el promedio sale de anualizar el mes en curso: a día
+    // 15 de julio (31 días), 15.000 gastados ⇒ 31.000 proyectados al mes.
+    await addTx('expense', 15_000, '2026-07-05', EXPENSE_CAT);
+
+    const ef = await emergencyFundStatusQuery(3);
+    expect(ef.averageMonthlyExpense).toBe(31_000);
   });
 });

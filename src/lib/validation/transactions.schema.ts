@@ -39,8 +39,15 @@ export const quickExpenseSchema = z.object({
   paymentMethodId: zNonEmptyString.optional(),
 });
 
-/** Actualización parcial de un movimiento. */
-export const transactionUpdateSchema = transactionCreateSchema.partial();
+/**
+ * Actualización parcial de un movimiento. `paymentMethodId` y `creditCardId`
+ * admiten `null` explícito para *desvincularlos* (omitirlos conserva el valor
+ * actual): sin esto no se podría pasar un gasto de tarjeta a efectivo.
+ */
+export const transactionUpdateSchema = transactionCreateSchema.partial().extend({
+  paymentMethodId: zNonEmptyString.nullable().optional(),
+  creditCardId: zNonEmptyString.nullable().optional(),
+});
 
 export type TransactionCreateInput = z.input<typeof transactionCreateSchema>;
 export type TransactionCreateParsed = z.output<typeof transactionCreateSchema>;

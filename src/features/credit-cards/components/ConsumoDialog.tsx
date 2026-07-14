@@ -19,6 +19,7 @@ import {
 } from '@/components/ui/select';
 import { MoneyInput } from '@/components/forms/MoneyInput';
 import { useCategories } from '@/hooks/useCategories';
+import { usePaymentMethods } from '@/hooks/usePaymentMethods';
 import { useSettings } from '@/hooks/useSettings';
 import { currencySymbol } from '@/lib/currency';
 import { handleError } from '@/lib/handle-error';
@@ -37,6 +38,7 @@ interface ConsumoDialogProps {
 export function ConsumoDialog({ cardId, open, onOpenChange }: ConsumoDialogProps) {
   const settings = useSettings();
   const categories = useCategories('expense');
+  const paymentMethods = usePaymentMethods();
 
   const [amount, setAmount] = useState<Cents>(ZERO_CENTS);
   const [categoryId, setCategoryId] = useState('');
@@ -51,6 +53,9 @@ export function ConsumoDialog({ cardId, open, onOpenChange }: ConsumoDialogProps
     setSubmitting(true);
     setError(null);
     try {
+      // Si la tarjeta tiene un método de pago vinculado, se etiqueta con él para
+      // que el desglose por método no lo cuente como "Sin método".
+      const method = paymentMethods.find((m) => m.creditCardId === cardId);
       await createTransaction({
         type: 'expense',
         amount,
@@ -59,6 +64,7 @@ export function ConsumoDialog({ cardId, open, onOpenChange }: ConsumoDialogProps
         creditCardId: cardId,
         description,
         tags: [],
+        ...(method ? { paymentMethodId: method.id } : {}),
       });
       onOpenChange(false);
     } catch (err) {

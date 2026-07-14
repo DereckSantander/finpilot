@@ -62,11 +62,18 @@ export async function updatePaymentMethod(
     ...(data.name !== undefined && { name: data.name }),
     ...(data.type !== undefined && { type: data.type }),
     ...(data.isArchived !== undefined && { isArchived: data.isArchived }),
-    ...(data.creditCardId !== undefined && {
-      creditCardId: data.creditCardId as CreditCardId,
-    }),
   };
-  await db.paymentMethods.update(id, patch);
+
+  await db.paymentMethods
+    .where('id')
+    .equals(id)
+    .modify((method) => {
+      Object.assign(method, patch);
+      if (data.creditCardId !== undefined) {
+        if (data.creditCardId === null) delete method.creditCardId;
+        else method.creditCardId = data.creditCardId as CreditCardId;
+      }
+    });
 }
 
 export async function archivePaymentMethod(id: PaymentMethodId, archived = true): Promise<void> {
