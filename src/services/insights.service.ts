@@ -1,44 +1,39 @@
+import { loadLedger } from '@/services/ledger/load';
 import {
-  dashboardMetricsQuery,
-  monthlyTrendQuery,
-  categoryBreakdownQuery,
-  goalsProgressQuery,
-  cardsSummaryQuery,
-  emergencyFundStatusQuery,
-} from '@/services/metrics.service';
-import { db } from '@/db/db';
-import { currentYearMonth } from '@/lib/date';
+  deriveDashboardMetrics,
+  deriveMonthlyTrend,
+  deriveCategoryBreakdown,
+  deriveEmergencyFundStatus,
+} from '@/services/derive/dashboard';
+import { deriveGoalsProgress } from '@/services/derive/goals';
+import { deriveCardsSummary } from '@/services/derive/cards';
 import { runInsights } from '@/lib/insights/engine';
 import type { Insight, InsightContext } from '@/lib/insights/types';
-import type { SettingsRow } from '@/db/schema';
 
 /**
- * Inteligencia financiera (F10b). Construye el contexto agregando los datos
- * reales de IndexedDB y ejecuta el motor de reglas. Apto para `useLiveQuery`.
+ * Inteligencia financiera (F10b). Construye el contexto y ejecuta el motor de
+ * reglas. Apto para `useLiveQuery`.
+ *
+ * Antes esto lanzaba seis consultas en paralelo y cada una releía la base por su
+ * cuenta: la tabla de movimientos se recorría tres o cuatro veces y la de pagos,
+ * dos o tres, en una sola llamada. Ahora se carga el ledger **una vez** y las
+ * seis métricas se derivan de esa misma foto — lo que además garantiza que
+ * todas describan exactamente el mismo instante.
  */
 export async function insightsQuery(): Promise<Insight[]> {
-  const ym = currentYearMonth();
+  const ledger = await loadLedger();
+  if (!ledger.settings) return [];
 
-  const [settings, metrics, trend, topCategories, goals, cards, emergencyFund] = await Promise.all([
-    db.settings.get('app'),
-    dashboardMetricsQuery(ym),
-    monthlyTrendQuery(ym, 3),
-    categoryBreakdownQuery(ym, 'expense'),
-    goalsProgressQuery(),
-    cardsSummaryQuery(),
-    emergencyFundStatusQuery(3),
-  ]);
-
-  if (!settings) return [];
+  const ym = ledger.currentYearMonth;
 
   const ctx: InsightContext = {
-    settings: settings as SettingsRow,
-    metrics,
-    trend,
-    topCategories,
-    goals,
-    cards,
-    emergencyFund,
+    settings: ledger.settings,
+    metrics: deriveDashboardMetrics(ledger, ym),
+    trend: deriveMonthlyTrend(ledger, ym, 3),
+    topCategories: deriveCategoryBreakdown(ledger, { yearMonth: ym }, 'expense'),
+    goals: deriveGoalsProgress(ledger),
+    cards: deriveCardsSummary(ledger),
+    emergencyFund: deriveEmergencyFundStatus(ledger, 3),
   };
 
   return runInsights(ctx);

@@ -17,7 +17,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useActiveCreditCards } from '@/features/settings/hooks/usePaymentMethodsAdmin';
+import {
+  useActiveCreditCards,
+  usePaymentMethodUsage,
+} from '@/features/settings/hooks/usePaymentMethodsAdmin';
 import { handleError } from '@/lib/handle-error';
 import { createPaymentMethod, updatePaymentMethod } from '@/services/paymentMethods.service';
 import type { PaymentMethodRow, PaymentMethodType } from '@/db/schema';
@@ -58,6 +61,14 @@ export function PaymentMethodFormDialog({
 
   // Solo un método de tipo "crédito" puede apuntar a una tarjeta.
   const linkedCard = type === 'credit' && cardId !== NONE ? cardId : null;
+
+  // Cambiar la tarjeta o el tipo reasigna la deuda de los movimientos históricos
+  // de este método, así que conviene avisar antes de guardar.
+  const usage = usePaymentMethodUsage(initial?.id);
+  const remapsHistory =
+    initial !== undefined &&
+    usage > 0 &&
+    (linkedCard !== (initial.creditCardId ?? null) || type !== initial.type);
 
   const submit = async () => {
     if (!name.trim()) return setError('Indica un nombre para el método de pago.');
@@ -154,6 +165,13 @@ export function PaymentMethodFormDialog({
                 </p>
               ) : null}
             </div>
+          ) : null}
+
+          {remapsHistory ? (
+            <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+              Se actualizarán {usage} movimiento{usage === 1 ? '' : 's'} histórico
+              {usage === 1 ? '' : 's'}: su deuda pasará a la tarjeta que elijas aquí.
+            </p>
           ) : null}
 
           {error ? <p className="text-xs text-destructive">{error}</p> : null}

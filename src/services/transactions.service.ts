@@ -247,11 +247,18 @@ export async function updateTransaction(
   const current = await getTransaction(id);
 
   const type = data.type ?? current.type;
+  // Método de pago *efectivo* tras el patch: si no se toca, sigue siendo el actual.
+  const methodId =
+    data.paymentMethodId !== undefined ? data.paymentMethodId : current.paymentMethodId;
+
   let nextCard: CreditCardId | null | undefined;
   if (data.creditCardId !== undefined) {
     nextCard = data.creditCardId as CreditCardId | null;
-  } else if (data.paymentMethodId !== undefined) {
-    nextCard = (await cardOfMethod(data.paymentMethodId)) ?? null;
+  } else if (data.paymentMethodId !== undefined || data.type !== undefined) {
+    // Cambiar SOLO el tipo también debe rededucir la tarjeta: un movimiento que
+    // pasa de ingreso a gasto con un método de crédito tiene que generar deuda,
+    // igual que si se hubiera creado como gasto desde el principio.
+    nextCard = (await cardOfMethod(methodId)) ?? null;
   }
   if (type === 'income') nextCard = null;
 

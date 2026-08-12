@@ -28,7 +28,11 @@ async function recomputeStatement(statementId: CreditCardStatementId): Promise<v
   const paid = sumCents(payments.map((p) => p.amount));
 
   let status: StatementStatus;
-  if (paid >= statement.statementBalance && statement.statementBalance > 0) {
+  if (statement.statementBalance <= 0) {
+    // Un corte sin saldo queda saldado en cuanto hay cualquier pago. Antes esta
+    // rama caía en `partial` y el corte no podía llegar nunca a `paid`.
+    status = paid > 0 ? 'paid' : 'open';
+  } else if (paid >= statement.statementBalance) {
     status = 'paid';
   } else if (paid > 0) {
     status = 'partial';

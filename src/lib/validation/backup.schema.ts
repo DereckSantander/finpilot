@@ -10,9 +10,21 @@ import { z } from 'zod';
 /** Un arreglo de filas (objetos). Permisivo con los campos internos. */
 const zTable = z.array(z.record(z.string(), z.unknown()));
 
+/**
+ * `settings` es la única tabla con fila obligatoria: la app entera se bloquea en
+ * el splash si `settings/app` no existe (SettingsProvider) y `db.on('populate')`
+ * solo dispara al crear la base, así que no habría forma de recuperarse desde la
+ * interfaz. Un respaldo sin ella se rechaza antes de tocar nada.
+ */
+const zSettingsTable = zTable
+  .length(1, { message: 'El respaldo no contiene la configuración de la aplicación.' })
+  .refine((rows) => rows[0]?.id === 'app', {
+    message: 'La configuración del respaldo es inválida (falta la fila `app`).',
+  });
+
 /** Tablas incluidas en el respaldo (los binarios de adjuntos se omiten). */
 export const backupTablesSchema = z.object({
-  settings: zTable,
+  settings: zSettingsTable,
   categories: zTable,
   paymentMethods: zTable,
   transactions: zTable,

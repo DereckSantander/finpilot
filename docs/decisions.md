@@ -1,6 +1,6 @@
 # FinPilot — Registro de decisiones de arquitectura (ADR)
 
-> Estado: **PROPUESTA — pendiente de aprobación**. Última actualización: 2026-07-02.
+> Estado: **APROBADO** (implementado). Última actualización: 2026-08-12.
 > Cada ADR documenta contexto, decisión, alternativas y consecuencias.
 
 ---
@@ -99,12 +99,74 @@ local con retención; export secundario a Excel/PDF para reportes.
 
 ---
 
-### Decisiones abiertas (a confirmar con el usuario)
-- **DEC-A:** ¿Librería monetaria **dinero.js** vs. helper propio sobre enteros? (Recomendado:
-  helper propio ligero + `Intl` para no arrastrar dependencia; dinero.js si se prevé
-  multi-moneda pronto.)
-- **DEC-B:** ¿Incluir **Framer Motion** desde v1 o empezar solo con `tailwindcss-animate`?
-  (Recomendado: `tailwindcss-animate` primero; Framer Motion cuando haya transiciones de
-  página complejas.)
-- **DEC-C:** ¿Onboarding con **asistente de carga inicial** de los datos del PDF?
-  (Recomendado: sí, opcional y saltable.)
+### Decisiones cerradas
+
+- **DEC-A — Librería monetaria.** *Resuelta: helper propio.* El dinero es un entero de
+  centavos con tipo branded (`Cents`, `types/money.ts`) y la aritmética vive en
+  `lib/money.ts`. No se añadió `dinero.js`. Se reevaluará solo si aparece multi-moneda.
+- **DEC-B — Animaciones.** *Resuelta: `tailwindcss-animate`.* No se añadió Framer Motion;
+  las transiciones actuales (diálogos, acordeones) se resuelven con CSS.
+- **DEC-C — Onboarding.** *Pendiente de implementar.* La bandera
+  `settings.onboardingCompleted` existe en el esquema y se siembra a `false`, pero **ningún
+  componente la lee todavía**: el asistente no está construido. Es el único pendiente
+  funcional conocido del proyecto.
+
+---
+
+## ADR-0010 — Ledger Facade para las métricas derivadas
+
+**Contexto:** `metrics.service.ts` había crecido a 992 líneas y 20 consultas, cada una
+yendo a Dexie por su cuenta. De ahí salieron bugs reales: el saldo por tarjeta estaba
+implementado cuatro veces y el "total ahorrado", dos, con reglas distintas que discrepaban
+al archivar una meta financiada. Además `insightsQuery()` releía la tabla de movimientos
+tres o cuatro veces por llamada.
+
+**Decisión:** cargar los datos primarios una sola vez en un objeto `Ledger` inmutable
+(`services/ledger/`) y derivar todas las métricas con funciones puras
+`Derivation<Args, T> = (ledger, ...args) => T` (`services/derive/`). `fromLedger` las
+envuelve para `useLiveQuery` conservando las firmas públicas, así que ningún componente
+cambió. Las magnitudes compartidas (`cardBalances`, `savedByGoal`) viven en `LedgerIndex`,
+donde solo pueden tener una definición.
+
+**Alternativas:** seguir corrigiendo cada duplicado caso por caso (era lo que se venía
+haciendo, y reaparecían); memoizar/cachear por tick (añade invalidación que no hace falta
+a este volumen de datos).
+
+**Consecuencias:** una magnitud = una definición, por construcción. `insightsQuery` pasa de
+~20 lecturas de tabla a 11 (fijado por un test). `LedgerScope` acota qué tablas lee cada
+consulta para que `useLiveQuery` no revalide de más — **hay que pasarlo** en cada consulta
+nueva. Es el mismo patrón que `InsightRule` ya usaba en `lib/insights`, generalizado.
+
+---
+
+## ADR-0011 — `buildPatch` para las actualizaciones parciales
+
+**Contexto:** cada `updateX` repetía a mano la cadena
+`...(data.campo !== undefined && { campo: ... })`, diez veces. Olvidar un campo no daba
+ningún error: se perdía en silencio (fue exactamente lo que pasó con `creditCardId` en
+`updateStatement`).
+
+**Decisión:** `lib/repository/patch.ts` declara el mapeo campo→conversión una vez. El tipo
+`PatchSpec` usa un mapped type con `-?`, de modo que **cubrir todas las claves comunes
+entre la entrada y la fila es obligatorio en tiempo de compilación**.
+
+**Alternativas:** un `createCrudRepository` genérico sobre los 12 servicios. Se descartó
+para los que tienen integridad de dominio propia (movimientos, metas, aportes, métodos de
+pago, presupuestos): enterrar esa lógica en un genérico la vuelve invisible.
+
+**Consecuencias:** menos repetición y, sobre todo, un campo olvidado deja de compilar. Los
+campos a `null` se devuelven en `unset` porque Dexie no borra propiedades vía `update`.
+
+---
+
+## ADR-0012 — `settings.startOfMonth` queda reservado, no se implementa
+
+**Contexto:** el campo era editable en Configuración pero **ningún cálculo lo leía**: todas
+las métricas usan meses naturales. El control prometía algo que no ocurría.
+
+**Decisión:** retirar el control de la interfaz y conservar el campo en el esquema
+(documentado como reservado) para no invalidar respaldos ni filas existentes.
+
+**Consecuencias:** honrarlo de verdad exigiría que `TransactionRow.yearMonth` dejara de
+derivarse de `date`, lo que rompería los índices `[type+yearMonth]` y `[yearMonth+categoryId]`
+y todos los gráficos. Es una funcionalidad con coste de migración, no un ajuste pendiente.

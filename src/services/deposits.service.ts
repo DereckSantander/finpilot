@@ -3,6 +3,7 @@ import { newId } from '@/lib/id';
 import { nowIso } from '@/lib/date';
 import { asCents } from '@/types/money';
 import { parseOrThrow } from '@/lib/validation/parse';
+import { buildPatch } from '@/lib/repository/patch';
 import {
   depositCreateSchema,
   depositUpdateSchema,
@@ -53,14 +54,15 @@ export async function updateDepositScenario(
   const data = parseOrThrow(depositUpdateSchema, input);
   await getDepositScenario(id);
 
-  const patch: Partial<DepositScenarioRow> = {
-    updatedAt: nowIso(),
-    ...(data.name !== undefined && { name: data.name }),
-    ...(data.principal !== undefined && { principal: asCents(data.principal) }),
-    ...(data.annualRate !== undefined && { annualRate: data.annualRate }),
-    ...(data.termMonths !== undefined && { termMonths: data.termMonths }),
-    ...(data.compounding !== undefined && { compounding: data.compounding }),
-  };
+  const { patch } = buildPatch<DepositScenarioRow, DepositUpdateInput>(data, {
+    name: true,
+    annualRate: true,
+    termMonths: true,
+    compounding: true,
+    principal: asCents,
+  });
+  patch.updatedAt = nowIso();
+
   await db.depositScenarios.update(id, patch);
 }
 

@@ -6,10 +6,19 @@ import {
   goalsProgressQuery,
   budgetStatusQuery,
   emergencyFundStatusQuery,
+  goalDetailQuery,
 } from '@/services/metrics.service';
 import { createTransaction } from '@/services/transactions.service';
 import { db } from '@/db/db';
-import { resetDb, addGoal, addContribution, addBudget, EXPENSE_CAT, INCOME_CAT } from '@/test/seed';
+import {
+  resetDb,
+  addGoal,
+  addContribution,
+  addBudget,
+  addTransactionRow,
+  EXPENSE_CAT,
+  INCOME_CAT,
+} from '@/test/seed';
 import { asCents } from '@/types/money';
 import type { CreditCardPaymentRow } from '@/db/schema';
 import type { CreditCardPaymentId, CreditCardId } from '@/types/ids';
@@ -56,7 +65,7 @@ describe('metrics.service', () => {
     expect(m.totalSaved).toBe(20_000);
     // disponible = ingresos − gastos − ahorrado = 100.000 − 40.000 − 20.000
     expect(m.available).toBe(40_000);
-    // patrimonio = disponible + ahorrado − deuda
+    // patrimonio = ingresos acumulados − gastos acumulados
     expect(m.netWorth).toBe(60_000);
     expect(m.transactionsCount).toBe(2);
   });
@@ -229,5 +238,38 @@ describe('metrics.service', () => {
 
     const ef = await emergencyFundStatusQuery(3);
     expect(ef.averageMonthlyExpense).toBe(31_000);
+  });
+
+  it('emergencyFundStatusQuery distingue historia sin gasto de falta de historia', async () => {
+    // Hay gasto registrado en los meses completos, pero suma cero (importes 0,
+    // p. ej. de un respaldo restaurado: el esquema no los permitiría crear).
+    // Es un promedio de cero legítimo, no "sin datos": el centinela anterior
+    // (`promedio === 0`) disparaba el prorrateo del mes en curso e inflaba los
+    // objetivos. Ahora se detecta por existencia de movimientos.
+    await addTransactionRow({ type: 'expense', amount: 0, date: '2026-04-10' });
+    await addTransactionRow({ type: 'expense', amount: 0, date: '2026-05-10' });
+    await addTransactionRow({ type: 'expense', amount: 0, date: '2026-06-10' });
+    await addTx('expense', 120_000, '2026-07-05', EXPENSE_CAT);
+
+    const ef = await emergencyFundStatusQuery(3);
+
+    // El gasto de julio (mes en curso) no puede convertirse en el promedio.
+    expect(ef.averageMonthlyExpense).toBe(0);
+    expect(ef.milestones.every((m) => m.target === 0)).toBe(true);
+  });
+
+  it('goalDetailQuery no cuenta aportes futuros como ritmo observado', async () => {
+    const goal = await addGoal('Viaje', 1_000_000);
+    await addContribution(goal, 60_000, '2026-06-10');
+    await addContribution(goal, 60_000, '2026-07-10');
+    const baseline = await goalDetailQuery(goal);
+
+    // Un aporte con fecha futura (dinero planificado o año mal tecleado) sí
+    // suma al ahorro, pero no debe acelerar el ritmo ni la fecha proyectada.
+    await addContribution(goal, 500_000, '2026-10-10');
+    const withFuture = await goalDetailQuery(goal);
+
+    expect(withFuture!.monthlyAverage).toBe(baseline!.monthlyAverage);
+    expect(withFuture!.saved).toBe(620_000);
   });
 });

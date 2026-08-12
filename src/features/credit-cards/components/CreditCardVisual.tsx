@@ -38,12 +38,18 @@ export function CreditCardVisual({ summary, settings, onClick }: CreditCardVisua
         background: `linear-gradient(135deg, ${card.color} 0%, ${card.color}cc 55%, #0b0f11 140%)`,
       }}
     >
-      <div className="flex items-start justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-wider text-white/70">{card.bank}</p>
-          <p className="text-lg font-semibold">{card.name}</p>
+      {/*
+        `min-w-0` + `truncate` + `shrink-0`: el nombre y el banco son texto libre
+        sin límite de longitud. Sin esto envolvían en varias líneas, cambiando la
+        altura de la tarjeta dentro de la rejilla y apretando la barra de
+        utilización de abajo.
+      */}
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-xs uppercase tracking-wider text-white/70">{card.bank}</p>
+          <p className="truncate text-lg font-semibold">{card.name}</p>
         </div>
-        <CardIcon className="h-7 w-7 text-white/80" />
+        <CardIcon className="h-7 w-7 shrink-0 text-white/80" />
       </div>
 
       <div className="mt-6 space-y-1">

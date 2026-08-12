@@ -4,6 +4,7 @@ import { nowIso } from '@/lib/date';
 import { sumCents } from '@/lib/money';
 import { asCents, ZERO_CENTS, type Cents } from '@/types/money';
 import { parseOrThrow } from '@/lib/validation/parse';
+import { buildPatch } from '@/lib/repository/patch';
 import {
   goalCreateSchema,
   goalUpdateSchema,
@@ -31,6 +32,36 @@ export async function getGoal(id: GoalId): Promise<GoalRow> {
   return row;
 }
 
+/**
+ * Invariante: como máximo una meta es el fondo de emergencia. Tanto
+ * `emergencyFundGoalQuery` como `emergencyFundStatusQuery` lo resuelven con
+ * `.first()`, así que dos metas marcadas harían que ganase una arbitraria.
+ *
+ * Se filtra en memoria a propósito: IndexedDB no indexa booleanos, de modo que
+ * el índice `isEmergencyFund` declarado en db/migrations.ts no devuelve nada.
+ */
+async function setSoleEmergencyFund(keepId: GoalId): Promise<void> {
+  await db.goals
+    .filter((g) => g.isEmergencyFund && g.id !== keepId)
+    .modify((g) => {
+      g.isEmergencyFund = false;
+      g.updatedAt = nowIso();
+    });
+}
+
+/**
+ * Desvincula `settings.emergencyFund.linkedGoalId` si apunta a esta meta. Se
+ * usa al archivar y al eliminar: una meta archivada desaparece de todas las
+ * consultas, así que dejar el enlace apuntándola deja la configuración mintiendo.
+ */
+async function unlinkEmergencyFundGoal(id: GoalId): Promise<void> {
+  const settings = await db.settings.get('app');
+  if (settings?.emergencyFund.linkedGoalId !== id) return;
+
+  const { linkedGoalId: _removed, ...emergencyFund } = settings.emergencyFund;
+  await db.settings.update('app', { emergencyFund, updatedAt: nowIso() });
+}
+
 export async function createGoal(input: GoalCreateInput): Promise<GoalRow> {
   const data = parseOrThrow(goalCreateSchema, input);
   const timestamp = nowIso();
@@ -49,7 +80,10 @@ export async function createGoal(input: GoalCreateInput): Promise<GoalRow> {
     ...(data.targetDate !== undefined && { targetDate: data.targetDate as IsoDate }),
   };
 
-  await db.goals.add(row);
+  await db.transaction('rw', db.goals, async () => {
+    await db.goals.add(row);
+    if (row.isEmergencyFund) await setSoleEmergencyFund(row.id);
+  });
   return row;
 }
 
@@ -57,23 +91,31 @@ export async function updateGoal(id: GoalId, input: GoalUpdateInput): Promise<vo
   const data = parseOrThrow(goalUpdateSchema, input);
   await getGoal(id);
 
-  const patch: Partial<GoalRow> = {
-    updatedAt: nowIso(),
-    ...(data.name !== undefined && { name: data.name }),
-    ...(data.targetAmount !== undefined && { targetAmount: asCents(data.targetAmount) }),
-    ...(data.targetDate !== undefined && { targetDate: data.targetDate as IsoDate }),
-    ...(data.priority !== undefined && { priority: data.priority }),
-    ...(data.color !== undefined && { color: data.color }),
-    ...(data.icon !== undefined && { icon: data.icon }),
-    ...(data.isEmergencyFund !== undefined && { isEmergencyFund: data.isEmergencyFund }),
-    ...(data.isArchived !== undefined && { isArchived: data.isArchived }),
-  };
-  await db.goals.update(id, patch);
+  const { patch } = buildPatch<GoalRow, GoalUpdateInput>(data, {
+    name: true,
+    priority: true,
+    color: true,
+    icon: true,
+    isEmergencyFund: true,
+    isArchived: true,
+    targetAmount: asCents,
+    targetDate: (v) => v as IsoDate,
+  });
+  patch.updatedAt = nowIso();
+
+  await db.transaction('rw', db.goals, db.settings, async () => {
+    await db.goals.update(id, patch);
+    if (data.isEmergencyFund === true) await setSoleEmergencyFund(id);
+    if (data.isArchived === true) await unlinkEmergencyFundGoal(id);
+  });
 }
 
 export async function archiveGoal(id: GoalId, archived = true): Promise<void> {
   await getGoal(id);
-  await db.goals.update(id, { isArchived: archived, updatedAt: nowIso() });
+  await db.transaction('rw', db.goals, db.settings, async () => {
+    await db.goals.update(id, { isArchived: archived, updatedAt: nowIso() });
+    if (archived) await unlinkEmergencyFundGoal(id);
+  });
 }
 
 /** Elimina una meta y todos sus aportes (cascada). */
@@ -81,12 +123,7 @@ export async function deleteGoal(id: GoalId): Promise<void> {
   await getGoal(id);
   await db.transaction('rw', db.goals, db.goalContributions, db.settings, async () => {
     await db.goalContributions.where('goalId').equals(id).delete();
-    // Si la meta estaba vinculada como fondo de emergencia en settings, se desvincula.
-    const settings = await db.settings.get('app');
-    if (settings?.emergencyFund.linkedGoalId === id) {
-      const { linkedGoalId: _removed, ...emergencyFund } = settings.emergencyFund;
-      await db.settings.update('app', { emergencyFund, updatedAt: nowIso() });
-    }
+    await unlinkEmergencyFundGoal(id);
     await db.goals.delete(id);
   });
 }

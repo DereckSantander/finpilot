@@ -34,7 +34,7 @@ export function TransactionDialog({ type, initial, open, onOpenChange }: Transac
   const labels = LABELS[type];
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{initial ? labels.edit : labels.create}</DialogTitle>
           <DialogDescription>{labels.hint}</DialogDescription>

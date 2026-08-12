@@ -7,8 +7,9 @@
  * Paleta minimalista "bancaria": neutros fríos + primario teal sobrio.
  * Los colores se declaran como HSL en variables CSS y Tailwind los referencia
  * con hsl(var(--token)). Cambiar de tema = alternar la clase .dark (ver
- * ThemeProvider), sin re-render de lógica. Fuentes: Inter con fallback a
- * system-ui (self-hosting de Inter pendiente; hoy usa el fallback del sistema).
+ * ThemeProvider), sin re-render de lógica. Tipografía: pila `system-ui` por
+ * decisión (ver roadmap): se descartó auto-hospedar Inter para no añadir ~150 KB
+ * de precaché a una PWA offline.
  */
 
 @layer base {

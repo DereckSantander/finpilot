@@ -1,8 +1,9 @@
 import { db } from '@/db/db';
 import { newId } from '@/lib/id';
 import { nowIso } from '@/lib/date';
-import { MAX_ATTACHMENT_BYTES } from '@/constants/config';
-import { NotFoundError, QuotaExceededError, ValidationError } from '@/lib/errors';
+import { parseOrThrow } from '@/lib/validation/parse';
+import { attachmentCreateSchema } from '@/lib/validation/attachments.schema';
+import { NotFoundError, QuotaExceededError } from '@/lib/errors';
 import type { AttachmentRow } from '@/db/schema';
 import type { AttachmentId, TransactionId } from '@/types/ids';
 
@@ -42,13 +43,14 @@ export async function addAttachment(
   mimeType?: string,
 ): Promise<AttachmentId> {
   const type = mimeType ?? file.type;
-  if (!type.startsWith('image/')) {
-    throw new ValidationError('El comprobante debe ser una imagen.');
-  }
-  if (file.size > MAX_ATTACHMENT_BYTES) {
-    const mb = (MAX_ATTACHMENT_BYTES / (1024 * 1024)).toFixed(0);
-    throw new ValidationError(`El comprobante supera el tamaño máximo (${mb} MB).`);
-  }
+  parseOrThrow(attachmentCreateSchema, {
+    transactionId,
+    mimeType: type,
+    sizeBytes: file.size,
+  });
+
+  // La cuota es un chequeo del entorno, no de la forma del dato: se queda fuera
+  // del esquema a propósito.
   await assertStorageAvailable(file.size);
 
   const row: AttachmentRow = {

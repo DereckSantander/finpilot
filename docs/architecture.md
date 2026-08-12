@@ -1,7 +1,7 @@
 # FinPilot — Arquitectura del Proyecto
 
-> Documento maestro de arquitectura. Estado: **PROPUESTA — pendiente de aprobación**.
-> Última actualización: 2026-07-02.
+> Documento maestro de arquitectura. Estado: **APROBADO** (implementado).
+> Última actualización: 2026-08-12.
 
 FinPilot es una aplicación **personal de finanzas**, _offline-first_, instalable como PWA
 en Windows y Android, sin backend y sin autenticación. Está pensada para un solo usuario,
@@ -62,7 +62,7 @@ las decisiones formales (ADR) en [`decisions.md`](./decisions.md).
 | Export Excel | **SheetJS (xlsx)** | Estándar para `.xlsx` en cliente. |
 | Export PDF | **jsPDF** + `jspdf-autotable` | Generación de PDF y tablas en cliente, sin servidor. |
 | Notificaciones | **sonner** | Toasts accesibles para feedback y errores. |
-| Tests | **Vitest** + **React Testing Library** | Unit/componentes. Playwright (opcional, fase posterior) para e2e. |
+| Tests | **Vitest** (entorno `node`) + **fake-indexeddb** | Lógica pura y services contra una IndexedDB real en memoria. **No hay pruebas de componentes**: no está instalado React Testing Library ni un DOM (jsdom). Cuando la lógica de un componente merezca prueba, se extrae a una función pura y se prueba en `node` (p. ej. `monthProgress` en `lib/date.ts`). |
 | Lint / formato | **ESLint** + **Prettier** + `eslint-plugin-tailwindcss` | Calidad y consistencia. |
 | Git hooks | **husky** + **lint-staged** | Bloquea commits que no pasan lint/typecheck. |
 
@@ -130,38 +130,57 @@ finpilot/
     │   └── seed.ts             # Categorías/métodos de pago por defecto
     │
     ├── services/              # Lógica de dominio y acceso a datos (por dominio)
+    │   ├── ledger/                 # ADR-0010: foto única de los datos primarios
+    │   │   ├── types.ts            #   Ledger, LedgerIndex, Derivation, LedgerScope
+    │   │   ├── load.ts             #   loadLedger() + índices derivados
+    │   │   └── adapt.ts            #   fromLedger(): derivación → query reactiva
+    │   ├── derive/                 # Derivaciones puras del ledger (sin Dexie)
+    │   │   ├── series.ts           #   monthSeries(): único bucle de meses
+    │   │   ├── dashboard.ts        #   KPIs, desgloses, tendencia, patrimonio, fondo
+    │   │   ├── cards.ts            #   resumen, detalle, historial y movimientos
+    │   │   ├── goals.ts            #   progreso, detalle y proyección de metas
+    │   │   ├── budgets.ts          #   estado de presupuestos del mes
+    │   │   └── statistics.ts       #   totales anuales y desglose por método
+    │   ├── metrics.service.ts      # Fachada: expone las *Query públicas
     │   ├── transactions.service.ts
     │   ├── categories.service.ts
+    │   ├── paymentMethods.service.ts
     │   ├── creditCards.service.ts
+    │   ├── creditCardStatements.service.ts
+    │   ├── creditCardPayments.service.ts
     │   ├── goals.service.ts
-    │   ├── budget.service.ts
-    │   ├── emergencyFund.service.ts
-    │   ├── deposits.service.ts     # cálculo de intereses/rentabilidad
-    │   ├── projections.service.ts  # simulaciones a N años
+    │   ├── goalContributions.service.ts
+    │   ├── budgets.service.ts
+    │   ├── deposits.service.ts     # escenarios del simulador
     │   ├── insights.service.ts     # motor de inteligencia financiera
-    │   ├── statistics.service.ts   # agregaciones para gráficos
-    │   ├── networth.service.ts     # patrimonio + snapshots
-    │   ├── backup.service.ts       # export/import JSON
+    │   ├── netWorth.service.ts     # snapshots de patrimonio
+    │   ├── attachments.service.ts
+    │   ├── reminders.service.ts
+    │   ├── tags.service.ts
+    │   ├── settings.service.ts
+    │   ├── backups.service.ts      # export/import JSON
+    │   ├── autoBackup.service.ts
     │   └── export.service.ts       # Excel / PDF
     │
     ├── hooks/                 # Hooks compartidos (transversales)
-    │   ├── useLiveQuery-wrappers/  # p.ej. useSettings, useCategories
+    │   ├── useSettings.ts, useCategories.ts, usePaymentMethods.ts, …
     │   ├── useTheme.ts
     │   ├── useMediaQuery.ts
-    │   ├── useDebouncedValue.ts
-    │   └── useConfirm.ts
+    │   └── useDebouncedValue.ts
     │
     ├── context/              # Contextos globales (definición + hook consumidor)
     │   ├── settings.context.ts
     │   └── theme.context.ts
     │
     ├── lib/                  # Utilidades puras, sin estado React
-    │   ├── money.ts          # aritmética y formateo monetario
-    │   ├── date.ts           # helpers date-fns
+    │   ├── money.ts          # aritmética monetaria sobre centavos
+    │   ├── date.ts           # helpers date-fns + monthProgress()
     │   ├── format.ts         # formateo de números, %, etc.
     │   ├── calc/             # fórmulas financieras puras (interés compuesto…)
+    │   ├── insights/         # motor de reglas (engine + rules/)
+    │   ├── repository/       # ADR-0011: buildPatch() para updates parciales
     │   ├── errors.ts         # jerarquía AppError
-    │   ├── result.ts         # tipo Result<T,E> (opcional)
+    │   ├── handle-error.ts   # sumidero único de errores hacia la UI
     │   ├── validation/       # esquemas Zod compartidos
     │   └── cn.ts             # helper de clases (clsx + tailwind-merge)
     │
@@ -176,8 +195,8 @@ finpilot/
     │   ├── currencies.ts
     │   └── config.ts         # nombre app, versión de esquema, límites
     │
-    ├── config/              # Configuración de librerías (chart defaults, pwa)
-    │   └── chart.ts
+    │   (los `defaults` de Chart.js viven hoy en components/charts/setup.ts;
+    │    unificarlos en un config/chart.ts sigue pendiente)
     │
     └── styles/
         ├── globals.css       # Tailwind base + CSS vars de tema
@@ -290,10 +309,12 @@ _lógica_ se descompone. La lógica va a un hook; el _layout_ queda declarativo.
   `useCategories()`, `useCreditCards()`, `useGoals()`, `useBudget(month)`,
   `useSettings()`, `useDashboardMetrics(month)`, `useNetWorth()`, `useInsights()`.
   Encapsulan la consulta reactiva y devuelven datos ya tipados y (si aplica) derivados.
-- **De UI:** `useTheme()`, `useMediaQuery()`, `useDebouncedValue()`, `useConfirm()`
-  (promesa que resuelve con la decisión del usuario), `useQuickAdd()` (Zustand).
-- **De formularios:** `useTransactionForm()`, `useGoalForm()` — envuelven RHF + resolver Zod
-  y la llamada al service de escritura, exponiendo `submit`, `isSubmitting`, `errors`.
+- **De UI:** `useTheme()`, `useMediaQuery()`, `useDebouncedValue()`, `useQuickAdd()` (Zustand).
+  La confirmación se resuelve con el componente `components/common/ConfirmDialog.tsx`, no con
+  un hook `useConfirm()` basado en promesas.
+- **De formularios:** _pendiente._ Hoy solo `TransactionForm` usa React Hook Form; los demás
+  diálogos manejan el estado campo a campo con `useState` y validan en el service vía Zod.
+  Unificarlos en un `useEntityForm()` (RHF + resolver Zod) está identificado pero no hecho.
 
 Regla: **un hook por preocupación**. Los hooks de datos no renderizan; los componentes no
 consultan la DB directamente.

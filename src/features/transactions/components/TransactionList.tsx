@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Pencil, Trash2, Paperclip } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -6,6 +6,7 @@ import { formatMoney } from '@/lib/format';
 import { formatDate } from '@/lib/date';
 import { cn } from '@/lib/cn';
 import { useSettings } from '@/hooks/useSettings';
+import { TRANSACTIONS_PAGE_SIZE } from '@/constants/config';
 import type { TransactionRow, CategoryRow, PaymentMethodRow } from '@/db/schema';
 import type { IsoDate } from '@/types/common';
 
@@ -44,7 +45,13 @@ export function TransactionList({
   onDelete,
 }: TransactionListProps) {
   const settings = useSettings();
-  const groups = useMemo(() => groupByDate(transactions), [transactions]);
+
+  // Se pagina **antes** de agrupar: recortar después dejaría grupos de fecha
+  // incompletos (un día partido por la mitad).
+  const [visible, setVisible] = useState(TRANSACTIONS_PAGE_SIZE);
+  const page = useMemo(() => transactions.slice(0, visible), [transactions, visible]);
+  const groups = useMemo(() => groupByDate(page), [page]);
+  const remaining = transactions.length - page.length;
 
   return (
     <div className="space-y-6">
@@ -141,6 +148,14 @@ export function TransactionList({
           </div>
         </div>
       ))}
+
+      {remaining > 0 ? (
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={() => setVisible((n) => n + TRANSACTIONS_PAGE_SIZE)}>
+            Ver más ({remaining} restante{remaining === 1 ? '' : 's'})
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

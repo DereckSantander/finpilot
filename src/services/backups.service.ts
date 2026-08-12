@@ -146,7 +146,15 @@ export async function importBackupFile(file: File): Promise<RestoreSummary> {
   } catch {
     throw new ValidationError('El archivo de respaldo no es un JSON válido.');
   }
+  return importBackupPayload(raw);
+}
 
+/**
+ * Restaura desde un objeto ya parseado. Es el punto de entrada real (y el seam
+ * de pruebas: no requiere un `File`). `importBackupFile` solo añade la lectura
+ * del archivo y el `JSON.parse`.
+ */
+export async function importBackupPayload(raw: unknown): Promise<RestoreSummary> {
   const backup = parseOrThrow(backupFileSchema, raw);
   const restoreTables = RESTORABLE_TABLES.filter((name) => db.tables.some((t) => t.name === name));
 
@@ -163,6 +171,15 @@ export async function importBackupFile(file: File): Promise<RestoreSummary> {
           await table.bulkPut(records);
           rows += records.length;
         }
+      }
+
+      // Última línea de defensa: si la restauración dejara la base sin
+      // configuración, la app arrancaría en un splash del que no se puede salir.
+      // Lanzar aquí revierte la transacción entera: o se aplica todo, o nada.
+      if (!(await db.settings.get('app'))) {
+        throw new ValidationError(
+          'El respaldo dejaría la aplicación sin configuración; no se aplicó ningún cambio.',
+        );
       }
     },
   );

@@ -86,7 +86,7 @@ export function GoalFormDialog({ open, onOpenChange, initial }: GoalFormDialogPr
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>{initial ? 'Editar meta' : 'Nueva meta'}</DialogTitle>
           <DialogDescription>Define tu objetivo de ahorro.</DialogDescription>

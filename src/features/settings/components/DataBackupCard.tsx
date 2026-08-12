@@ -63,7 +63,7 @@ export function DataBackupCard() {
   };
 
   const toggleAutoBackup = (enabled: boolean) =>
-    run('auto', () => updateSettings({ autoBackup: { ...settings.autoBackup, enabled } }));
+    run('auto', () => updateSettings({ autoBackup: { enabled } }));
 
   return (
     <Card>

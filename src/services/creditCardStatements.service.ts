@@ -3,6 +3,7 @@ import { newId } from '@/lib/id';
 import { nowIso } from '@/lib/date';
 import { asCents, ZERO_CENTS } from '@/types/money';
 import { parseOrThrow } from '@/lib/validation/parse';
+import { buildPatch } from '@/lib/repository/patch';
 import {
   statementCreateSchema,
   statementUpdateSchema,
@@ -63,18 +64,17 @@ export async function updateStatement(
   const data = parseOrThrow(statementUpdateSchema, input);
   await getStatement(id);
 
-  const patch: Partial<CreditCardStatementRow> = {
-    updatedAt: nowIso(),
-    ...(data.yearMonth !== undefined && { yearMonth: data.yearMonth as YearMonth }),
-    ...(data.cutoffDate !== undefined && { cutoffDate: data.cutoffDate as IsoDate }),
-    ...(data.dueDate !== undefined && { dueDate: data.dueDate as IsoDate }),
-    ...(data.statementBalance !== undefined && {
-      statementBalance: asCents(data.statementBalance),
-    }),
-    ...(data.minimumPayment !== undefined && { minimumPayment: asCents(data.minimumPayment) }),
-    ...(data.paidAmount !== undefined && { paidAmount: asCents(data.paidAmount) }),
-    ...(data.status !== undefined && { status: data.status }),
-  };
+  const { patch } = buildPatch<CreditCardStatementRow, StatementUpdateInput>(data, {
+    status: true,
+    yearMonth: (v) => v as YearMonth,
+    cutoffDate: (v) => v as IsoDate,
+    dueDate: (v) => v as IsoDate,
+    statementBalance: asCents,
+    minimumPayment: asCents,
+    paidAmount: asCents,
+  });
+  patch.updatedAt = nowIso();
+
   await db.creditCardStatements.update(id, patch);
 }
 

@@ -71,7 +71,17 @@ export function GoalsPage() {
       ) : (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-            <SummaryCard icon={PiggyBank} label="Total ahorrado" value={money(totals.saved)} />
+            {/*
+              "Ahorrado en metas activas", no "Total ahorrado": el KPI del
+              dashboard incluye también las metas archivadas (ese dinero salió
+              de la caja igualmente). Dos cifras legítimamente distintas, así
+              que no pueden compartir etiqueta.
+            */}
+            <SummaryCard
+              icon={PiggyBank}
+              label="Ahorrado en metas activas"
+              value={money(totals.saved)}
+            />
             <SummaryCard icon={Flag} label="Objetivo total" value={money(totals.target)} />
             <SummaryCard icon={Target} label="Metas activas" value={String(totals.count)} />
           </div>

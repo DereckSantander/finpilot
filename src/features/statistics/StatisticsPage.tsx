@@ -339,46 +339,50 @@ function AnualTab({ settings }: { settings: SettingsRow }) {
       </ChartCard>
 
       <Card>
-        <CardContent className="p-0">
-          <div className="grid grid-cols-4 gap-2 border-b border-border px-4 py-2 text-xs font-medium uppercase text-muted-foreground">
-            <span>Año</span>
-            <span className="text-right">Ingresos</span>
-            <span className="text-right">Gastos</span>
-            <span className="text-right">Balance</span>
-          </div>
-          {yearly
-            .slice()
-            .reverse()
-            .map((y) => (
-              <div
-                key={y.year}
-                className="grid grid-cols-4 gap-2 border-b border-border/60 px-4 py-2.5 text-sm tabular-nums last:border-0"
-              >
-                <span>{y.label}</span>
-                <span className="text-right text-success">
-                  {formatMoney(y.income, {
-                    currency: settings.currency,
-                    locale: settings.locale,
-                    hideZeroDecimals: true,
-                  })}
-                </span>
-                <span className="text-right text-destructive">
-                  {formatMoney(y.expense, {
-                    currency: settings.currency,
-                    locale: settings.locale,
-                    hideZeroDecimals: true,
-                  })}
-                </span>
-                <span className="text-right font-medium">
-                  {formatMoney(y.balance, {
-                    currency: settings.currency,
-                    locale: settings.locale,
-                    hideZeroDecimals: true,
-                    signDisplay: 'exceptZero',
-                  })}
-                </span>
-              </div>
-            ))}
+        {/* Tabla real con scroll horizontal: ver la nota en CardDetailPage. */}
+        <CardContent className="overflow-x-auto p-0">
+          <table className="w-full min-w-[26rem] border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-border text-xs font-medium uppercase text-muted-foreground">
+                <th className="px-4 py-2 text-left font-medium">Año</th>
+                <th className="px-4 py-2 text-right font-medium">Ingresos</th>
+                <th className="px-4 py-2 text-right font-medium">Gastos</th>
+                <th className="px-4 py-2 text-right font-medium">Balance</th>
+              </tr>
+            </thead>
+            <tbody>
+              {yearly
+                .slice()
+                .reverse()
+                .map((y) => (
+                  <tr key={y.year} className="border-b border-border/60 tabular-nums last:border-0">
+                    <td className="px-4 py-2.5">{y.label}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right text-success">
+                      {formatMoney(y.income, {
+                        currency: settings.currency,
+                        locale: settings.locale,
+                        hideZeroDecimals: true,
+                      })}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right text-destructive">
+                      {formatMoney(y.expense, {
+                        currency: settings.currency,
+                        locale: settings.locale,
+                        hideZeroDecimals: true,
+                      })}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right font-medium">
+                      {formatMoney(y.balance, {
+                        currency: settings.currency,
+                        locale: settings.locale,
+                        hideZeroDecimals: true,
+                        signDisplay: 'exceptZero',
+                      })}
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
         </CardContent>
       </Card>
     </div>

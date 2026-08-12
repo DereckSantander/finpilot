@@ -50,10 +50,7 @@ export function EmergencyFundSetupDialog({
         isEmergencyFund: true,
       });
       await updateSettings({
-        emergencyFund: {
-          targetMonths: settings.emergencyFund.targetMonths,
-          linkedGoalId: goal.id as GoalId,
-        },
+        emergencyFund: { linkedGoalId: goal.id as GoalId },
       });
       onOpenChange(false);
     } catch (err) {

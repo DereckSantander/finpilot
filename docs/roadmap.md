@@ -108,7 +108,9 @@ Orden pensado para tener valor usable cuanto antes y construir sobre cimientos s
 - [x] PWA: manifest, iconos, offline y **prompt de actualización** (`pwa.ts`) ya en su sitio;
       `prefers-reduced-motion` respetado en `globals.css`.
 - **Entregable:** instalable en Windows/Android, look "bancario".
-- _Pendiente menor:_ self-hosting de la fuente Inter (hoy `system-ui` de fallback).
+- _Decidido:_ no se auto-hospeda Inter. La app usa la pila `system-ui`, que evita ~150 KB
+  de precaché y una descarga externa. Se reconsiderará solo si la tipografía del sistema
+  desvirtúa el diseño en alguna plataforma.
 
 ## Fase 12 · Calidad final — ✅ COMPLETADA (2026-07-05)
 - [x] Cobertura de tests en `lib/calc` (`projection`), `lib/format`, y **servicios/flujos críticos**

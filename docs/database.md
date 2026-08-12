@@ -1,6 +1,6 @@
 # FinPilot — Base de datos (IndexedDB + Dexie)
 
-> Estado: **PROPUESTA — pendiente de aprobación**. Última actualización: 2026-07-02.
+> Estado: **APROBADO** (implementado). Última actualización: 2026-08-12.
 > Modelo de datos, tablas, índices, relaciones, migraciones y respaldo.
 
 La persistencia es la **fuente de la verdad** de la aplicación. Se usa **IndexedDB** a través

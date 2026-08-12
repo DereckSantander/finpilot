@@ -1,6 +1,7 @@
 import { db } from '@/db/db';
 import { newId } from '@/lib/id';
 import { asCents } from '@/types/money';
+import { toYearMonth } from '@/lib/date';
 import type {
   SettingsRow,
   CategoryRow,
@@ -9,7 +10,10 @@ import type {
   BudgetRow,
   CreditCardRow,
   CreditCardPaymentRow,
+  CreditCardStatementRow,
+  StatementStatus,
   PaymentMethodRow,
+  TransactionRow,
 } from '@/db/schema';
 import type {
   CategoryId,
@@ -18,7 +22,9 @@ import type {
   BudgetId,
   CreditCardId,
   CreditCardPaymentId,
+  CreditCardStatementId,
   PaymentMethodId,
+  TransactionId,
 } from '@/types/ids';
 import type { IsoDate, IsoDateTime, YearMonth } from '@/types/common';
 
@@ -164,18 +170,93 @@ export async function addPaymentMethod(
   return id;
 }
 
-/** Inserta un pago de tarjeta. */
+/** Inserta un pago de tarjeta y devuelve su id. */
 export async function addCardPayment(
   creditCardId: CreditCardId,
   amount: number,
   date: string,
-): Promise<void> {
+  opts: { statementId?: CreditCardStatementId } = {},
+): Promise<CreditCardPaymentId> {
+  const id = newId<CreditCardPaymentId>();
   const row: CreditCardPaymentRow = {
-    id: newId<CreditCardPaymentId>(),
+    id,
     creditCardId,
     amount: asCents(amount),
     date: date as IsoDate,
     createdAt: NOW,
+    ...(opts.statementId ? { statementId: opts.statementId } : {}),
   };
   await db.creditCardPayments.add(row);
+  return id;
+}
+
+/** Inserta un corte mensual de tarjeta y devuelve su id. */
+export async function addStatement(
+  creditCardId: CreditCardId,
+  opts: {
+    yearMonth?: string;
+    statementBalance?: number;
+    minimumPayment?: number;
+    paidAmount?: number;
+    status?: StatementStatus;
+    cutoffDate?: string;
+    dueDate?: string;
+  } = {},
+): Promise<CreditCardStatementId> {
+  const id = newId<CreditCardStatementId>();
+  const yearMonth = (opts.yearMonth ?? '2026-07') as YearMonth;
+  const row: CreditCardStatementRow = {
+    id,
+    creditCardId,
+    yearMonth,
+    cutoffDate: (opts.cutoffDate ?? `${yearMonth}-05`) as IsoDate,
+    dueDate: (opts.dueDate ?? `${yearMonth}-20`) as IsoDate,
+    statementBalance: asCents(opts.statementBalance ?? 0),
+    minimumPayment: asCents(opts.minimumPayment ?? 0),
+    paidAmount: asCents(opts.paidAmount ?? 0),
+    status: opts.status ?? 'open',
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+  await db.creditCardStatements.add(row);
+  return id;
+}
+
+/**
+ * Escribe un movimiento directamente en Dexie, saltándose la validación y la
+ * derivación de `creditCardId` del servicio. Permite construir en las pruebas
+ * los estados inconsistentes que producen los bugs (p. ej. un gasto con método
+ * de crédito pero sin tarjeta asociada), imposibles de crear vía `createTransaction`.
+ */
+export async function addTransactionRow(
+  row: Omit<Partial<TransactionRow>, 'amount' | 'date' | 'yearMonth'> & {
+    type: TransactionRow['type'];
+    /** En centavos, como número plano (se marca con `asCents`). */
+    amount: number;
+    /** "YYYY-MM-DD". */
+    date: string;
+    yearMonth?: string;
+  },
+): Promise<TransactionId> {
+  const { amount, date, yearMonth, ...rest } = row;
+  const id = rest.id ?? newId<TransactionId>();
+  const full: TransactionRow = {
+    categoryId: row.type === 'income' ? INCOME_CAT : EXPENSE_CAT,
+    description: 'Movimiento de prueba',
+    tags: [],
+    createdAt: NOW,
+    updatedAt: NOW,
+    ...rest,
+    id,
+    amount: asCents(amount),
+    date: date as IsoDate,
+    yearMonth: (yearMonth as YearMonth | undefined) ?? toYearMonth(date as IsoDate),
+  };
+  await db.transactions.add(full);
+  return id;
+}
+
+/** Aplica un parche a la fila única de configuración. */
+export async function patchSettings(patch: Partial<SettingsRow>): Promise<void> {
+  await db.settings.update('app', patch);
 }

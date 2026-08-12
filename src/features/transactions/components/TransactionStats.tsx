@@ -1,10 +1,10 @@
-import { getDaysInMonth, parseISO } from 'date-fns';
 import { BarChart3, PieChart } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ProgressBar } from '@/components/common/ProgressBar';
 import { DonutChart } from '@/components/charts/DonutChart';
 import { formatMoney, formatPercent } from '@/lib/format';
+import { monthProgress } from '@/lib/date';
 import { asCents } from '@/types/money';
 import type { CategorySlice } from '@/services/metrics.service';
 import type { SettingsRow } from '@/db/schema';
@@ -23,8 +23,10 @@ export function TransactionStats({ type, yearMonth, breakdown, settings }: Trans
     formatMoney(asCents(value), { currency: settings.currency, locale: settings.locale });
 
   const total = breakdown.reduce((acc, slice) => acc + slice.total, 0);
-  const daysInMonth = getDaysInMonth(parseISO(`${yearMonth}-01`));
-  const dailyAverage = Math.round(total / daysInMonth);
+  // Días **transcurridos**, no los del mes entero: en el mes en curso (la vista
+  // por defecto) dividir entre 31 el día 5 subestimaba el ritmo real de gasto.
+  const { elapsed } = monthProgress(yearMonth);
+  const dailyAverage = elapsed > 0 ? Math.round(total / elapsed) : 0;
   const topCategory = breakdown[0];
   const label = type === 'income' ? 'ingresos' : 'gastos';
 
@@ -43,7 +45,11 @@ export function TransactionStats({ type, yearMonth, breakdown, settings }: Trans
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatChip label={`Total de ${label}`} value={money(total)} />
         <StatChip label="Categorías" value={String(breakdown.length)} />
-        <StatChip label="Promedio diario" value={money(dailyAverage)} />
+        <StatChip
+          label="Promedio diario"
+          value={money(dailyAverage)}
+          hint="según los días transcurridos"
+        />
         <StatChip
           label="Categoría principal"
           value={topCategory ? topCategory.name : '—'}

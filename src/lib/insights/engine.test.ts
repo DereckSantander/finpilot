@@ -39,6 +39,7 @@ function baseCtx(overrides: Partial<InsightContext> = {}): InsightContext {
       monthBalance: c(40_000),
       savingsRate: 0.4,
       totalSaved: c(0),
+      activeSaved: c(0),
       available: c(0),
       cardDebt: c(0),
       netWorth: c(0),

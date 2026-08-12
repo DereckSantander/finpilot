@@ -17,10 +17,13 @@ import type { CategoryRow, PaymentMethodRow, SettingsRow } from '@/db/schema';
  * base de datos se crea por primera vez. Inserta la configuración por defecto,
  * las categorías y los métodos de pago semilla (ver features.md).
  */
-export async function populate(db: FinPilotDB): Promise<void> {
-  const timestamp = nowIso();
-
-  const settings: SettingsRow = {
+/**
+ * Configuración por defecto. Extraída del sembrado porque `ensureSettings`
+ * (settings.service) la reutiliza para recrear la fila si desaparece: sin ella
+ * la app se queda en el splash y `populate` ya no vuelve a ejecutarse.
+ */
+export function buildDefaultSettings(timestamp = nowIso()): SettingsRow {
+  return {
     id: 'app',
     currency: DEFAULT_CURRENCY,
     locale: DEFAULT_LOCALE,
@@ -39,6 +42,12 @@ export async function populate(db: FinPilotDB): Promise<void> {
     createdAt: timestamp,
     updatedAt: timestamp,
   };
+}
+
+export async function populate(db: FinPilotDB): Promise<void> {
+  const timestamp = nowIso();
+
+  const settings = buildDefaultSettings(timestamp);
 
   const categories: CategoryRow[] = SEED_CATEGORIES.map((seed, index) => ({
     id: newId<CategoryId>(),

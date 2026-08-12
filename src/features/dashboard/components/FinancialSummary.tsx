@@ -27,7 +27,7 @@ export function FinancialSummary({ metrics, settings }: FinancialSummaryProps) {
         value={money(metrics.netWorth)}
         icon={Landmark}
         intent="primary"
-        hint="Disponible + ahorros − deudas"
+        hint="Ingresos acumulados − gastos acumulados"
       />
       <KpiCard
         label="Dinero disponible"
@@ -40,7 +40,7 @@ export function FinancialSummary({ metrics, settings }: FinancialSummaryProps) {
         value={money(metrics.totalSaved)}
         icon={PiggyBank}
         intent="default"
-        hint="Acumulado en tus metas"
+        hint="Acumulado en todas tus metas (incl. archivadas)"
       />
       <KpiCard
         label="Ingresos del mes"

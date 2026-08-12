@@ -38,6 +38,13 @@ export interface SettingsRow extends Timestamps {
   currency: string;
   locale: Locale;
   theme: ThemeMode;
+  /**
+   * Reservado. Hoy **todas** las métricas usan meses naturales: honrar un inicio
+   * de mes personalizado obligaría a que `TransactionRow.yearMonth` dejara de
+   * derivarse de `date`, rompiendo los índices `[type+yearMonth]` y
+   * `[yearMonth+categoryId]` y todos los gráficos. Se conserva el campo para no
+   * invalidar respaldos ni filas existentes, pero no hay control que lo edite.
+   */
   startOfMonth: number;
   monthlySavingsTarget: Cents;
   emergencyFund: {

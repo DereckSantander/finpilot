@@ -1,4 +1,12 @@
-import { format, parseISO, startOfMonth, endOfMonth, differenceInCalendarDays } from 'date-fns';
+import {
+  format,
+  parseISO,
+  startOfMonth,
+  endOfMonth,
+  differenceInCalendarDays,
+  getDaysInMonth,
+  getDate,
+} from 'date-fns';
 import { es, enUS } from 'date-fns/locale';
 import type { IsoDate, IsoDateTime, YearMonth, Locale } from '@/types/common';
 
@@ -53,6 +61,26 @@ export function startOfYearMonth(ym: YearMonth): Date {
 /** Último día del mes de una YearMonth. */
 export function endOfYearMonth(ym: YearMonth): Date {
   return endOfMonth(parseISO(`${ym}-01`));
+}
+
+/**
+ * Días transcurridos y totales de un mes. El mes en curso cuenta solo los días
+ * ya vividos; un mes pasado cuenta entero y uno futuro, cero.
+ *
+ * Es el denominador correcto para cualquier "promedio diario" o proyección a
+ * fin de mes: dividir el gasto del mes en curso entre los días *totales*
+ * subestima el ritmo real durante todo el mes.
+ */
+export function monthProgress(
+  yearMonth: YearMonth,
+  today: IsoDate = todayIso(),
+): { elapsed: number; total: number } {
+  const total = getDaysInMonth(parseISO(`${yearMonth}-01`));
+  const currentYm = toYearMonth(today);
+  if (yearMonth === currentYm) {
+    return { elapsed: Math.max(getDate(parseISO(today)), 1), total };
+  }
+  return yearMonth < currentYm ? { elapsed: total, total } : { elapsed: 0, total };
 }
 
 /** Días de diferencia entre dos fechas (b - a). Negativo si `b` es anterior. */

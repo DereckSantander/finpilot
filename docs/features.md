@@ -1,6 +1,6 @@
 # FinPilot — Catálogo funcional
 
-> Estado: **PROPUESTA — pendiente de aprobación**. Última actualización: 2026-07-02.
+> Estado: **APROBADO** (implementado). Última actualización: 2026-08-12.
 > Traduce los requisitos del PDF a features concretas, con reglas de negocio y cálculos.
 
 Cada feature indica: **objetivo**, **datos** (tablas implicadas), **reglas/cálculos** y

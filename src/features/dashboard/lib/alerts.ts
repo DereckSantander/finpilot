@@ -1,5 +1,9 @@
 import { formatMoney, formatPercent } from '@/lib/format';
-import { CARD_DUE_SOON_DAYS } from '@/constants/config';
+import {
+  CARD_DUE_SOON_DAYS,
+  CARD_UTILIZATION_DANGER,
+  CARD_UTILIZATION_CRITICAL,
+} from '@/constants/config';
 import type {
   DashboardMetrics,
   CardSummary,
@@ -45,10 +49,10 @@ export function computeAlerts(params: {
             : `Tu tarjeta ${summary.card.name} vence en ${summary.daysUntilDue} día(s).`,
       });
     }
-    if (summary.utilization >= 0.7) {
+    if (summary.utilization >= CARD_UTILIZATION_DANGER) {
       alerts.push({
         id: `card-util-${summary.card.id}`,
-        level: summary.utilization >= 0.9 ? 'danger' : 'warning',
+        level: summary.utilization >= CARD_UTILIZATION_CRITICAL ? 'danger' : 'warning',
         message: `Estás utilizando el ${formatPercent(summary.utilization, locale)} del cupo de ${summary.card.name}.`,
       });
     }

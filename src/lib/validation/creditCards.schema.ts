@@ -35,7 +35,13 @@ export const statementCreateSchema = z.object({
   status: zStatementStatus.optional(),
 });
 
+/**
+ * `creditCardId` se omite a propósito: un corte pertenece a la tarjeta con la
+ * que se creó y moverlo dejaría sus pagos huérfanos. Antes venía arrastrado por
+ * el `.partial()` y `updateStatement` lo aceptaba sin aplicarlo nunca.
+ */
 export const statementUpdateSchema = statementCreateSchema
+  .omit({ creditCardId: true })
   .partial()
   .extend({ paidAmount: zCents.optional() });
 

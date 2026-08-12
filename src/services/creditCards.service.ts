@@ -3,6 +3,7 @@ import { newId } from '@/lib/id';
 import { nowIso } from '@/lib/date';
 import { asCents } from '@/types/money';
 import { parseOrThrow } from '@/lib/validation/parse';
+import { buildPatch } from '@/lib/repository/patch';
 import {
   creditCardCreateSchema,
   creditCardUpdateSchema,
@@ -60,16 +61,17 @@ export async function updateCreditCard(
   const data = parseOrThrow(creditCardUpdateSchema, input);
   await getCreditCard(id);
 
-  const patch: Partial<CreditCardRow> = {
-    updatedAt: nowIso(),
-    ...(data.name !== undefined && { name: data.name }),
-    ...(data.bank !== undefined && { bank: data.bank }),
-    ...(data.creditLimit !== undefined && { creditLimit: asCents(data.creditLimit) }),
-    ...(data.cutoffDay !== undefined && { cutoffDay: data.cutoffDay }),
-    ...(data.paymentDueDay !== undefined && { paymentDueDay: data.paymentDueDay }),
-    ...(data.color !== undefined && { color: data.color }),
-    ...(data.isArchived !== undefined && { isArchived: data.isArchived }),
-  };
+  const { patch } = buildPatch<CreditCardRow, CreditCardUpdateInput>(data, {
+    name: true,
+    bank: true,
+    cutoffDay: true,
+    paymentDueDay: true,
+    color: true,
+    isArchived: true,
+    creditLimit: asCents,
+  });
+  patch.updatedAt = nowIso();
+
   await db.creditCards.update(id, patch);
 }
 

@@ -23,9 +23,15 @@ export const EMERGENCY_FUND_TARGET_MONTHS = [3, 6, 12] as const;
 /** Meta de ahorro mensual por defecto (en unidades, no centavos). */
 export const DEFAULT_MONTHLY_SAVINGS_TARGET = 300;
 
-/** Umbrales de alerta de utilización de tarjeta (ratios 0–1). */
+/**
+ * Umbrales de alerta de utilización de tarjeta (ratios 0–1). Escalera completa:
+ * WARN 0.3 < DANGER 0.7 < CRITICAL 0.9. Importarlos siempre desde aquí: estos
+ * valores estaban además escritos a mano en las reglas de insights y en las
+ * alertas del dashboard, que se habrían desincronizado al ajustar cualquiera.
+ */
 export const CARD_UTILIZATION_WARN = 0.3;
 export const CARD_UTILIZATION_DANGER = 0.7;
+export const CARD_UTILIZATION_CRITICAL = 0.9;
 
 /** Días de antelación para alertar sobre el pago de una tarjeta. */
 export const CARD_DUE_SOON_DAYS = 5;

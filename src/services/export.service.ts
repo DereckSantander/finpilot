@@ -2,7 +2,7 @@ import { db } from '@/db/db';
 import { fromCents, sumCents } from '@/lib/money';
 import { asCents } from '@/types/money';
 import { formatMoney, formatPercent } from '@/lib/format';
-import { formatDate } from '@/lib/date';
+import { formatDate, todayIso } from '@/lib/date';
 import { downloadBlob, fileDateStamp } from '@/lib/download';
 import {
   dashboardMetricsQuery,
@@ -13,7 +13,6 @@ import { currentYearMonth } from '@/lib/date';
 import { APP_NAME } from '@/constants/config';
 import type { SettingsRow } from '@/db/schema';
 import type { Cents } from '@/types/money';
-import type { IsoDate } from '@/types/common';
 
 /**
  * Exportación a Excel (SheetJS) y PDF (jsPDF). Ambas librerías se cargan de forma
@@ -60,7 +59,7 @@ export async function exportTransactionsXlsx(settings: SettingsRow): Promise<voi
     { Concepto: 'Balance', Valor: fromCents(asCents(totalIncome - totalExpense)) },
     {
       Concepto: 'Exportado',
-      Valor: formatDate(fileDateStamp() as IsoDate, 'd MMM yyyy', settings.locale),
+      Valor: formatDate(todayIso(), 'd MMM yyyy', settings.locale),
     },
   ];
 
@@ -110,11 +109,7 @@ export async function exportReportPdf(settings: SettingsRow): Promise<void> {
   doc.text(`${APP_NAME} · Informe financiero`, marginX, 20);
   doc.setFontSize(10);
   doc.setTextColor(120);
-  doc.text(
-    `Generado el ${formatDate(fileDateStamp() as IsoDate, 'd MMM yyyy', settings.locale)}`,
-    marginX,
-    27,
-  );
+  doc.text(`Generado el ${formatDate(todayIso(), 'd MMM yyyy', settings.locale)}`, marginX, 27);
   doc.setTextColor(0);
 
   autoTable(doc, {

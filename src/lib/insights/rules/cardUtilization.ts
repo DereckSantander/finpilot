@@ -1,4 +1,9 @@
 import { formatMoney, formatPercent } from '@/lib/format';
+import {
+  CARD_UTILIZATION_WARN,
+  CARD_UTILIZATION_DANGER,
+  CARD_UTILIZATION_CRITICAL,
+} from '@/constants/config';
 import type { Cents } from '@/types/money';
 import type { Insight, InsightContext } from '@/lib/insights/types';
 
@@ -20,17 +25,17 @@ export const cardUtilizationRule = (ctx: InsightContext): Insight | null => {
     });
   const pct = formatPercent(worst.utilization, settings.locale);
 
-  if (worst.utilization >= 0.7) {
+  if (worst.utilization >= CARD_UTILIZATION_DANGER) {
     return {
       id: 'card-util-high',
       category: 'cards',
-      severity: worst.utilization >= 0.9 ? 'critical' : 'warning',
+      severity: worst.utilization >= CARD_UTILIZATION_CRITICAL ? 'critical' : 'warning',
       title: `Usas el ${pct} del cupo de ${worst.card.name}`,
       message: `Una utilización alta encarece tu crédito y baja tu margen. Prioriza abonar a ${worst.card.name} (deuda ${money(worst.currentBalance)}).`,
     };
   }
 
-  if (worst.utilization >= 0.3) {
+  if (worst.utilization >= CARD_UTILIZATION_WARN) {
     return {
       id: 'card-util-mid',
       category: 'cards',

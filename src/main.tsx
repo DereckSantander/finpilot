@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from '@/app/App';
 import { openDatabase } from '@/db/db';
+import { ensureSettings } from '@/services/settings.service';
 import { maybeRunAutoBackup } from '@/services/autoBackup.service';
 import { registerServiceWorker } from '@/pwa';
 import '@/styles/globals.css';
@@ -21,6 +22,9 @@ const root = createRoot(container);
 async function bootstrap(): Promise<void> {
   try {
     await openDatabase();
+    // Recrea la configuración si faltara: sin ella la app se queda en el splash
+    // y `db.on('populate')` ya no vuelve a ejecutarse en una base existente.
+    await ensureSettings();
   } catch (error) {
     console.error('[FinPilot] No se pudo abrir la base de datos local:', error);
     root.render(

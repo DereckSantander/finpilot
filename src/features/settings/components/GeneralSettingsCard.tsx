@@ -34,7 +34,6 @@ export function GeneralSettingsCard() {
 
   const [currency, setCurrency] = useState(settings.currency);
   const [locale, setLocale] = useState<Locale>(settings.locale);
-  const [startOfMonth, setStartOfMonth] = useState(String(settings.startOfMonth));
   const [savingsTarget, setSavingsTarget] = useState<Cents>(settings.monthlySavingsTarget);
   const [emergencyMonths, setEmergencyMonths] = useState(
     settings.emergencyFund.targetMonths.join(', '),
@@ -46,18 +45,12 @@ export function GeneralSettingsCard() {
   const dirty =
     currency !== settings.currency ||
     locale !== settings.locale ||
-    startOfMonth !== String(settings.startOfMonth) ||
     savingsTarget !== settings.monthlySavingsTarget ||
     emergencyMonths !== settings.emergencyFund.targetMonths.join(', ') ||
     freqDays !== String(settings.autoBackup.frequencyDays) ||
     keep !== String(settings.autoBackup.keep);
 
   const save = async () => {
-    const day = Math.trunc(Number(startOfMonth));
-    if (!Number.isInteger(day) || day < 1 || day > 28) {
-      toast.error('El inicio de mes debe ser un día entre 1 y 28.');
-      return;
-    }
     const months = Array.from(
       new Set(
         emergencyMonths
@@ -82,10 +75,9 @@ export function GeneralSettingsCard() {
       await updateSettings({
         currency,
         locale,
-        startOfMonth: day,
         monthlySavingsTarget: savingsTarget,
-        emergencyFund: { ...settings.emergencyFund, targetMonths: months },
-        autoBackup: { ...settings.autoBackup, frequencyDays, keep: keepN },
+        emergencyFund: { targetMonths: months },
+        autoBackup: { frequencyDays, keep: keepN },
       });
       toast.success('Preferencias guardadas.');
     } catch (err) {
@@ -136,20 +128,6 @@ export function GeneralSettingsCard() {
                 ))}
               </SelectContent>
             </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="set-som">Inicio de mes (día)</Label>
-            <Input
-              id="set-som"
-              type="number"
-              inputMode="numeric"
-              min="1"
-              max="28"
-              value={startOfMonth}
-              onChange={(e) => setStartOfMonth(e.target.value)}
-              className="tabular-nums"
-            />
           </div>
 
           <div className="space-y-1.5">

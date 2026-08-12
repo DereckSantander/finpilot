@@ -215,43 +215,56 @@ export function CardDetailPage() {
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Historial mensual</CardTitle>
           </CardHeader>
-          <CardContent className="p-0">
-            <div className="grid grid-cols-4 gap-2 border-b border-border px-4 py-2 text-xs font-medium uppercase text-muted-foreground">
-              <span>Mes</span>
-              <span className="text-right">Consumos</span>
-              <span className="text-right">Pagos</span>
-              <span className="text-right">Balance</span>
-            </div>
-            {reversedHistory.map((h) => (
-              <div
-                key={h.yearMonth}
-                className="grid grid-cols-4 gap-2 border-b border-border/60 px-4 py-2.5 text-sm tabular-nums last:border-0"
-              >
-                <span className="capitalize">{h.label}</span>
-                <span className="text-right text-destructive">
-                  {formatMoney(h.consumo, {
-                    currency: settings.currency,
-                    locale: settings.locale,
-                    hideZeroDecimals: true,
-                  })}
-                </span>
-                <span className="text-right text-success">
-                  {formatMoney(h.pago, {
-                    currency: settings.currency,
-                    locale: settings.locale,
-                    hideZeroDecimals: true,
-                  })}
-                </span>
-                <span className="text-right font-medium">
-                  {formatMoney(h.balance, {
-                    currency: settings.currency,
-                    locale: settings.locale,
-                    hideZeroDecimals: true,
-                    signDisplay: 'exceptZero',
-                  })}
-                </span>
-              </div>
-            ))}
+          {/*
+            Tabla real dentro de un contenedor con scroll horizontal. Antes era
+            una rejilla `grid-cols-4`: los items de grid no bajan de su ancho
+            intrínseco (`min-width: auto`) y `Card` no recorta, así que en
+            pantallas estrechas las filas se salían del borde de la tarjeta e
+            invadían la columna vecina.
+          */}
+          <CardContent className="overflow-x-auto p-0">
+            <table className="w-full min-w-[26rem] border-collapse text-sm">
+              <thead>
+                <tr className="border-b border-border text-xs font-medium uppercase text-muted-foreground">
+                  <th className="px-4 py-2 text-left font-medium">Mes</th>
+                  <th className="px-4 py-2 text-right font-medium">Consumos</th>
+                  <th className="px-4 py-2 text-right font-medium">Pagos</th>
+                  <th className="px-4 py-2 text-right font-medium">Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reversedHistory.map((h) => (
+                  <tr
+                    key={h.yearMonth}
+                    className="border-b border-border/60 tabular-nums last:border-0"
+                  >
+                    <td className="px-4 py-2.5 capitalize">{h.label}</td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right text-destructive">
+                      {formatMoney(h.consumo, {
+                        currency: settings.currency,
+                        locale: settings.locale,
+                        hideZeroDecimals: true,
+                      })}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right text-success">
+                      {formatMoney(h.pago, {
+                        currency: settings.currency,
+                        locale: settings.locale,
+                        hideZeroDecimals: true,
+                      })}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-2.5 text-right font-medium">
+                      {formatMoney(h.balance, {
+                        currency: settings.currency,
+                        locale: settings.locale,
+                        hideZeroDecimals: true,
+                        signDisplay: 'exceptZero',
+                      })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </CardContent>
         </Card>
       </div>

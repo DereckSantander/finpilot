@@ -157,6 +157,51 @@ describe('deuda de tarjeta', () => {
     expect(summary?.dueDate).toBe('2026-07-30');
   });
 
+  it('cambiar el tipo de ingreso a gasto reconstruye la tarjeta del método', async () => {
+    const card = await addCard('Visa');
+    const credit = await addPaymentMethod('Visa', { type: 'credit', creditCardId: card });
+
+    // Se registra por error como ingreso: no genera deuda (correcto).
+    const tx = await createTransaction({
+      type: 'income',
+      amount: 30_000,
+      date: '2026-07-05',
+      categoryId: INCOME_CAT,
+      paymentMethodId: credit,
+      description: 'Compra mal tipada',
+      tags: [],
+    });
+    expect(tx.creditCardId).toBeUndefined();
+
+    // Se corrige SOLO el tipo: debe pasar a contar como consumo de la Visa.
+    await updateTransaction(tx.id, { type: 'expense', categoryId: EXPENSE_CAT });
+
+    const updated = await db.transactions.get(tx.id);
+    expect(updated?.creditCardId).toBe(card);
+    expect((await dashboardMetricsQuery(ym('2026-07'))).cardDebt).toBe(30_000);
+  });
+
+  it('cambiar el tipo de gasto a ingreso limpia la tarjeta', async () => {
+    const card = await addCard('Visa');
+    const credit = await addPaymentMethod('Visa', { type: 'credit', creditCardId: card });
+
+    const tx = await createTransaction({
+      type: 'expense',
+      amount: 30_000,
+      date: '2026-07-05',
+      categoryId: EXPENSE_CAT,
+      paymentMethodId: credit,
+      description: 'Devolución',
+      tags: [],
+    });
+    expect(tx.creditCardId).toBe(card);
+
+    await updateTransaction(tx.id, { type: 'income', categoryId: INCOME_CAT });
+
+    expect((await db.transactions.get(tx.id))?.creditCardId).toBeUndefined();
+    expect((await dashboardMetricsQuery(ym('2026-07'))).cardDebt).toBe(0);
+  });
+
   it('un ingreso nunca queda ligado a una tarjeta', async () => {
     const card = await addCard('Visa');
     const credit = await addPaymentMethod('Visa', { type: 'credit', creditCardId: card });

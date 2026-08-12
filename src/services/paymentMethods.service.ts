@@ -50,12 +50,34 @@ export async function createPaymentMethod(
   return row;
 }
 
+/**
+ * Resincroniza el `creditCardId` denormalizado de los movimientos de un método
+ * tras cambiar su tarjeta o su tipo. El campo se copia en cada movimiento al
+ * crearlo (transactions.service: `cardOfMethod`) por rendimiento; esta función
+ * es lo que impide que esa copia se vuelva mentira cuando el método cambia.
+ * Los ingresos nunca quedan ligados a una tarjeta.
+ */
+async function resyncTransactionsOfMethod(
+  methodId: PaymentMethodId,
+  card: CreditCardId | undefined,
+): Promise<void> {
+  await db.transactions
+    .where('paymentMethodId')
+    .equals(methodId)
+    .modify((tx) => {
+      const next = tx.type === 'expense' ? card : undefined;
+      if (next === undefined) delete tx.creditCardId;
+      else tx.creditCardId = next;
+      tx.updatedAt = nowIso();
+    });
+}
+
 export async function updatePaymentMethod(
   id: PaymentMethodId,
   input: PaymentMethodUpdateInput,
 ): Promise<void> {
   const data = parseOrThrow(paymentMethodUpdateSchema, input);
-  await getPaymentMethod(id);
+  const current = await getPaymentMethod(id);
 
   const patch: Partial<PaymentMethodRow> = {
     updatedAt: nowIso(),
@@ -64,16 +86,33 @@ export async function updatePaymentMethod(
     ...(data.isArchived !== undefined && { isArchived: data.isArchived }),
   };
 
-  await db.paymentMethods
-    .where('id')
-    .equals(id)
-    .modify((method) => {
-      Object.assign(method, patch);
-      if (data.creditCardId !== undefined) {
-        if (data.creditCardId === null) delete method.creditCardId;
-        else method.creditCardId = data.creditCardId as CreditCardId;
-      }
-    });
+  // Solo un cambio de tarjeta o de tipo puede alterar a qué tarjeta pertenecen
+  // los movimientos; renombrar o archivar no toca el historial.
+  const cardChanged = data.creditCardId !== undefined;
+  const typeChanged = data.type !== undefined && data.type !== current.type;
+  const nextType = data.type ?? current.type;
+  const nextCardId = cardChanged
+    ? ((data.creditCardId as CreditCardId | null) ?? undefined)
+    : current.creditCardId;
+  // Un método que deja de ser de crédito no puede seguir generando deuda.
+  const effectiveCard = nextType === 'credit' ? nextCardId : undefined;
+
+  await db.transaction('rw', db.paymentMethods, db.transactions, async () => {
+    await db.paymentMethods
+      .where('id')
+      .equals(id)
+      .modify((method) => {
+        Object.assign(method, patch);
+        if (data.creditCardId !== undefined) {
+          if (data.creditCardId === null) delete method.creditCardId;
+          else method.creditCardId = data.creditCardId as CreditCardId;
+        }
+      });
+
+    if (cardChanged || typeChanged) {
+      await resyncTransactionsOfMethod(id, effectiveCard);
+    }
+  });
 }
 
 export async function archivePaymentMethod(id: PaymentMethodId, archived = true): Promise<void> {
