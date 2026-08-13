@@ -1,14 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { FormDialog } from '@/components/forms/FormDialog';
 import {
   Select,
   SelectContent,
@@ -70,61 +62,46 @@ export function DeleteCategoryDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Eliminar «{category.name}»</DialogTitle>
-          <DialogDescription>
-            {usage === null
-              ? 'Comprobando movimientos asociados…'
-              : needsReassign
-                ? `Esta categoría tiene ${usage} movimiento(s). Elige una categoría de reemplazo para conservarlos.`
-                : 'Esta categoría no tiene movimientos. Se eliminará de forma permanente.'}
-          </DialogDescription>
-        </DialogHeader>
-
-        {needsReassign ? (
-          <div className="space-y-1.5">
-            <Label htmlFor="reassign">Reasignar movimientos a</Label>
-            {options.length === 0 ? (
-              <p className="text-sm text-destructive">
-                No hay otra categoría del mismo tipo. Crea una antes de eliminar esta.
-              </p>
-            ) : (
-              <Select value={reassignTo} onValueChange={setReassignTo}>
-                <SelectTrigger id="reassign">
-                  <SelectValue placeholder="Selecciona una categoría" />
-                </SelectTrigger>
-                <SelectContent>
-                  {options.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-        ) : null}
-
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            className="gap-2"
-            disabled={
-              busy || usage === null || (needsReassign && (!reassignTo || options.length === 0))
-            }
-            onClick={() => void confirm()}
-          >
-            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-            Eliminar
-          </Button>
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={`Eliminar «${category.name}»`}
+      description={
+        usage === null
+          ? 'Comprobando movimientos asociados…'
+          : needsReassign
+            ? `Esta categoría tiene ${usage} movimiento(s). Elige una categoría de reemplazo para conservarlos.`
+            : 'Esta categoría no tiene movimientos. Se eliminará de forma permanente.'
+      }
+      submitLabel="Eliminar"
+      submitting={busy}
+      submitDisabled={usage === null || (needsReassign && (!reassignTo || options.length === 0))}
+      destructive
+      onSubmit={() => void confirm()}
+    >
+      {needsReassign ? (
+        <div className="space-y-1.5">
+          <Label htmlFor="reassign">Reasignar movimientos a</Label>
+          {options.length === 0 ? (
+            <p className="text-sm text-destructive">
+              No hay otra categoría del mismo tipo. Crea una antes de eliminar esta.
+            </p>
+          ) : (
+            <Select value={reassignTo} onValueChange={setReassignTo}>
+              <SelectTrigger id="reassign">
+                <SelectValue placeholder="Selecciona una categoría" />
+              </SelectTrigger>
+              <SelectContent>
+                {options.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         </div>
-      </DialogContent>
-    </Dialog>
+      ) : null}
+    </FormDialog>
   );
 }

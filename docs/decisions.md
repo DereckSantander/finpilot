@@ -106,14 +106,16 @@ local con retención; export secundario a Excel/PDF para reportes.
   `lib/money.ts`. No se añadió `dinero.js`. Se reevaluará solo si aparece multi-moneda.
 - **DEC-B — Animaciones.** *Resuelta: `tailwindcss-animate`.* No se añadió Framer Motion;
   las transiciones actuales (diálogos, acordeones) se resuelven con CSS.
-- **DEC-C — Onboarding.** *Pendiente de implementar.* La bandera
-  `settings.onboardingCompleted` existe en el esquema y se siembra a `false`, pero **ningún
-  componente la lee todavía**: el asistente no está construido. Es el único pendiente
-  funcional conocido del proyecto.
+- **DEC-C — Onboarding.** *Resuelta: sí, mínimo y saltable.* Implementado en
+  `features/onboarding/OnboardingDialog.tsx`: tres pasos (moneda/idioma, meta de ahorro y una
+  primera meta opcional) montado en `AppLayout`. Consume la bandera
+  `settings.onboardingCompleted`, que llevaba desde el inicio en el esquema sin que nadie la
+  leyera. **Toda** salida —terminar, «Omitir», la X o Escape— la marca como completada, así que
+  no hay forma de quedar atrapado ni de que reaparezca; se puede relanzar desde Configuración.
 
 ---
 
-## ADR-0010 — Ledger Facade para las métricas derivadas
+## ADR-0013 — Ledger Facade para las métricas derivadas
 
 **Contexto:** `metrics.service.ts` había crecido a 992 líneas y 20 consultas, cada una
 yendo a Dexie por su cuenta. De ahí salieron bugs reales: el saldo por tarjeta estaba
@@ -139,7 +141,7 @@ nueva. Es el mismo patrón que `InsightRule` ya usaba en `lib/insights`, general
 
 ---
 
-## ADR-0011 — `buildPatch` para las actualizaciones parciales
+## ADR-0014 — `buildPatch` para las actualizaciones parciales
 
 **Contexto:** cada `updateX` repetía a mano la cadena
 `...(data.campo !== undefined && { campo: ... })`, diez veces. Olvidar un campo no daba
@@ -159,7 +161,7 @@ campos a `null` se devuelven en `unset` porque Dexie no borra propiedades vía `
 
 ---
 
-## ADR-0012 — `settings.startOfMonth` queda reservado, no se implementa
+## ADR-0015 — `settings.startOfMonth` queda reservado, no se implementa
 
 **Contexto:** el campo era editable en Configuración pero **ningún cálculo lo leía**: todas
 las métricas usan meses naturales. El control prometía algo que no ocurría.

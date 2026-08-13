@@ -1,13 +1,5 @@
 import { useState } from 'react';
-import { Loader2, Zap } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { Zap } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -17,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { FormDialog } from '@/components/forms/FormDialog';
 import { MoneyInput } from '@/components/forms/MoneyInput';
 import { useCategories } from '@/hooks/useCategories';
 import { useSettings } from '@/hooks/useSettings';
@@ -86,79 +79,63 @@ export function QuickAddExpenseDialog() {
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-primary" />
-            Gasto rápido
-          </DialogTitle>
-          <DialogDescription>Registra un gasto en segundos.</DialogDescription>
-        </DialogHeader>
+    <FormDialog
+      open={open}
+      onOpenChange={handleOpenChange}
+      title={
+        <span className="flex items-center gap-2">
+          <Zap className="h-5 w-5 text-primary" />
+          Gasto rápido
+        </span>
+      }
+      description="Registra un gasto en segundos."
+      submitLabel="Registrar gasto"
+      submitting={submitting}
+      error={error}
+      onSubmit={() => void submit()}
+    >
+      <div className="space-y-1.5">
+        <Label htmlFor="quick-amount">Monto</Label>
+        <MoneyInput
+          id="quick-amount"
+          value={amount}
+          onChange={setAmount}
+          currencySymbol={currencySymbol(settings.currency)}
+          autoFocus
+        />
+      </div>
 
-        <form
-          className="space-y-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void submit();
-          }}
-        >
-          <div className="space-y-1.5">
-            <Label htmlFor="quick-amount">Monto</Label>
-            <MoneyInput
-              id="quick-amount"
-              value={amount}
-              onChange={setAmount}
-              currencySymbol={currencySymbol(settings.currency)}
-              autoFocus
-            />
-          </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="quick-category">Categoría</Label>
+        <Select value={categoryId} onValueChange={setCategoryId}>
+          <SelectTrigger id="quick-category">
+            <SelectValue placeholder="Elegir…" />
+          </SelectTrigger>
+          <SelectContent>
+            {categories.map((category) => (
+              <SelectItem key={category.id} value={category.id}>
+                <span className="flex items-center gap-2">
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: category.color }}
+                  />
+                  {category.name}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="quick-category">Categoría</Label>
-            <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger id="quick-category">
-                <SelectValue placeholder="Elegir…" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: category.color }}
-                      />
-                      {category.name}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="quick-description">Descripción (opcional)</Label>
-            <Input
-              id="quick-description"
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="Ej. Almuerzo"
-            />
-          </div>
-
-          {error ? <p className="text-xs text-destructive">{error}</p> : null}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={submitting} className="gap-2">
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Registrar gasto
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <div className="space-y-1.5">
+        <Label htmlFor="quick-description">Descripción (opcional)</Label>
+        <Input
+          id="quick-description"
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          placeholder="Ej. Almuerzo"
+        />
+      </div>
+    </FormDialog>
   );
 }

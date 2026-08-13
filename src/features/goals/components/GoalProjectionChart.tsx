@@ -1,10 +1,8 @@
-import { useMemo } from 'react';
 import { Line } from 'react-chartjs-2';
 import type { ChartData, ChartOptions } from 'chart.js';
 import '@/components/charts/setup';
-import { formatMoney, formatCompactMoney } from '@/lib/format';
-import { asCents } from '@/types/money';
-import { useTheme } from '@/hooks/useTheme';
+import { moneyLineOptions } from '@/config/chart';
+import { useChartConfig } from '@/hooks/useChartOptions';
 import { themeColor, withAlpha } from '@/lib/theme-colors';
 import type { GoalProjection } from '@/services/metrics.service';
 import type { SettingsRow } from '@/db/schema';
@@ -17,9 +15,7 @@ interface GoalProjectionChartProps {
 
 /** Línea de ahorro acumulado real + proyección hacia el objetivo. */
 export function GoalProjectionChart({ projection, color, settings }: GoalProjectionChartProps) {
-  const { resolvedTheme } = useTheme();
-
-  const data = useMemo<ChartData<'line'>>(
+  const data = useChartConfig<ChartData<'line'>>(
     () => ({
       labels: projection.labels,
       datasets: [
@@ -54,51 +50,12 @@ export function GoalProjectionChart({ projection, color, settings }: GoalProject
         },
       ],
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [projection, color, resolvedTheme],
+    [projection, color],
   );
 
-  const options = useMemo<ChartOptions<'line'>>(
-    () => ({
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          callbacks: {
-            label: (ctx) =>
-              ctx.parsed.y === null
-                ? ''
-                : ` ${ctx.dataset.label ?? ''}: ${formatMoney(asCents(ctx.parsed.y), {
-                    currency: settings.currency,
-                    locale: settings.locale,
-                  })}`,
-          },
-        },
-      },
-      scales: {
-        x: {
-          grid: { display: false },
-          ticks: { color: themeColor('--muted-foreground'), font: { size: 11 } },
-          border: { display: false },
-        },
-        y: {
-          beginAtZero: true,
-          grid: { color: themeColor('--border', 0.5) },
-          border: { display: false },
-          ticks: {
-            color: themeColor('--muted-foreground'),
-            font: { size: 11 },
-            maxTicksLimit: 4,
-            callback: (value) =>
-              formatCompactMoney(asCents(Number(value)), settings.currency, settings.locale),
-          },
-        },
-      },
-    }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [settings.currency, settings.locale, resolvedTheme],
+  const options = useChartConfig<ChartOptions<'line'>>(
+    () => moneyLineOptions({ currency: settings.currency, locale: settings.locale }),
+    [settings.currency, settings.locale],
   );
 
   return <Line data={data} options={options} />;

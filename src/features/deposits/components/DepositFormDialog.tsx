@@ -1,13 +1,4 @@
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -17,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { FormDialog } from '@/components/forms/FormDialog';
 import { MoneyInput } from '@/components/forms/MoneyInput';
 import { useSettings } from '@/hooks/useSettings';
 import { currencySymbol } from '@/lib/currency';
@@ -96,102 +88,82 @@ export function DepositFormDialog({ open, onOpenChange, initial, preset }: Depos
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{initial ? 'Editar escenario' : 'Guardar escenario'}</DialogTitle>
-          <DialogDescription>
-            Un escenario guarda capital, tasa, plazo y periodicidad para compararlo con otros.
-          </DialogDescription>
-        </DialogHeader>
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={initial ? 'Editar escenario' : 'Guardar escenario'}
+      description="Un escenario guarda capital, tasa, plazo y periodicidad para compararlo con otros."
+      submitLabel={initial ? 'Guardar cambios' : 'Guardar escenario'}
+      submitting={submitting}
+      error={error}
+      onSubmit={() => void submit()}
+    >
+      <div className="space-y-1.5">
+        <Label htmlFor="dep-name">Nombre</Label>
+        <Input
+          id="dep-name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Banco X 90 días, Póliza 12 meses…"
+          autoFocus
+        />
+      </div>
 
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void submit();
-          }}
-        >
-          <div className="space-y-1.5">
-            <Label htmlFor="dep-name">Nombre</Label>
-            <Input
-              id="dep-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Banco X 90 días, Póliza 12 meses…"
-              autoFocus
-            />
-          </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="dep-principal">Capital</Label>
+        <MoneyInput
+          id="dep-principal"
+          value={principal}
+          onChange={setPrincipal}
+          currencySymbol={currencySymbol(settings.currency)}
+        />
+      </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="dep-principal">Capital</Label>
-            <MoneyInput
-              id="dep-principal"
-              value={principal}
-              onChange={setPrincipal}
-              currencySymbol={currencySymbol(settings.currency)}
-            />
-          </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="dep-rate">Tasa anual (%)</Label>
+          <Input
+            id="dep-rate"
+            type="number"
+            inputMode="decimal"
+            step="0.01"
+            min="0"
+            max="100"
+            value={ratePct}
+            onChange={(e) => setRatePct(e.target.value)}
+            className="tabular-nums"
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="dep-term">Plazo (meses)</Label>
+          <Input
+            id="dep-term"
+            type="number"
+            inputMode="numeric"
+            step="1"
+            min="1"
+            value={termMonths}
+            onChange={(e) => setTermMonths(e.target.value)}
+            className="tabular-nums"
+          />
+        </div>
+      </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="dep-rate">Tasa anual (%)</Label>
-              <Input
-                id="dep-rate"
-                type="number"
-                inputMode="decimal"
-                step="0.01"
-                min="0"
-                max="100"
-                value={ratePct}
-                onChange={(e) => setRatePct(e.target.value)}
-                className="tabular-nums"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="dep-term">Plazo (meses)</Label>
-              <Input
-                id="dep-term"
-                type="number"
-                inputMode="numeric"
-                step="1"
-                min="1"
-                value={termMonths}
-                onChange={(e) => setTermMonths(e.target.value)}
-                className="tabular-nums"
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="dep-compounding">Capitalización</Label>
-            <Select value={compounding} onValueChange={(v) => setCompounding(v as Compounding)}>
-              <SelectTrigger id="dep-compounding">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {COMPOUNDINGS.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {COMPOUNDING_LABELS[c]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {error ? <p className="text-xs text-destructive">{error}</p> : null}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={submitting} className="gap-2">
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {initial ? 'Guardar cambios' : 'Guardar escenario'}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <div className="space-y-1.5">
+        <Label htmlFor="dep-compounding">Capitalización</Label>
+        <Select value={compounding} onValueChange={(v) => setCompounding(v as Compounding)}>
+          <SelectTrigger id="dep-compounding">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {COMPOUNDINGS.map((c) => (
+              <SelectItem key={c} value={c}>
+                {COMPOUNDING_LABELS[c]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </FormDialog>
   );
 }

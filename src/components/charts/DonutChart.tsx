@@ -2,9 +2,9 @@ import { useMemo } from 'react';
 import { Doughnut } from 'react-chartjs-2';
 import type { ChartData, ChartOptions } from 'chart.js';
 import { baseArcOptions } from '@/components/charts/setup';
+import { useChartConfig } from '@/hooks/useChartOptions';
 import { formatMoney } from '@/lib/format';
 import { asCents } from '@/types/money';
-import { useTheme } from '@/hooks/useTheme';
 import { themeColor } from '@/lib/theme-colors';
 import type { Locale } from '@/types/common';
 
@@ -22,9 +22,7 @@ interface DonutChartProps {
 
 /** Gráfico de dona (gastos por categoría). Colores por dato; tooltip monetario. */
 export function DonutChart({ data, currency, locale }: DonutChartProps) {
-  const { resolvedTheme } = useTheme();
-
-  const chartData = useMemo<ChartData<'doughnut'>>(
+  const chartData = useChartConfig<ChartData<'doughnut'>>(
     () => ({
       labels: data.map((d) => d.label),
       datasets: [
@@ -37,9 +35,7 @@ export function DonutChart({ data, currency, locale }: DonutChartProps) {
         },
       ],
     }),
-    // resolvedTheme fuerza recalcular el borde (themeColor lee CSS vars) al cambiar de tema.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [data, resolvedTheme],
+    [data],
   );
 
   const options = useMemo<ChartOptions<'doughnut'>>(

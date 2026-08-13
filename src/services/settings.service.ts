@@ -105,6 +105,19 @@ export async function unlinkEmergencyFundGoal(): Promise<void> {
   });
 }
 
+/**
+ * Marca el asistente inicial como completado. Idempotente: da igual por qué vía
+ * se cierre el asistente (terminar, omitir o cerrar), siempre acaba aquí.
+ */
+export async function completeOnboarding(): Promise<void> {
+  await updateSettings({ onboardingCompleted: true });
+}
+
+/** Vuelve a mostrar el asistente inicial (desde Configuración). */
+export async function restartOnboarding(): Promise<void> {
+  await updateSettings({ onboardingCompleted: false });
+}
+
 /** Atajo para persistir la preferencia de tema. */
 export async function setThemePreference(theme: ThemeMode): Promise<void> {
   await updateSettings({ theme });

@@ -1,15 +1,7 @@
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FormDialog } from '@/components/forms/FormDialog';
 import { MoneyInput } from '@/components/forms/MoneyInput';
 import { useSettings } from '@/hooks/useSettings';
 import { currencySymbol } from '@/lib/currency';
@@ -54,83 +46,66 @@ export function ContributionDialog({ goalId, open, onOpenChange }: ContributionD
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Asignar dinero</DialogTitle>
-          <DialogDescription>Aporta o retira dinero de esta meta.</DialogDescription>
-        </DialogHeader>
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Asignar dinero"
+      description="Aporta o retira dinero de esta meta."
+      submitLabel={mode === 'deposit' ? 'Aportar' : 'Retirar'}
+      submitting={submitting}
+      error={error}
+      onSubmit={() => void submit()}
+    >
+      <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
+        {(['deposit', 'withdraw'] as Mode[]).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            className={cn(
+              'rounded-md py-1.5 text-sm font-medium transition',
+              mode === m
+                ? 'bg-background shadow-sm'
+                : 'text-muted-foreground hover:text-foreground',
+            )}
+            aria-pressed={mode === m}
+          >
+            {m === 'deposit' ? 'Aportar' : 'Retirar'}
+          </button>
+        ))}
+      </div>
 
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void submit();
-          }}
-        >
-          <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted p-1">
-            {(['deposit', 'withdraw'] as Mode[]).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMode(m)}
-                className={cn(
-                  'rounded-md py-1.5 text-sm font-medium transition',
-                  mode === m
-                    ? 'bg-background shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground',
-                )}
-              >
-                {m === 'deposit' ? 'Aportar' : 'Retirar'}
-              </button>
-            ))}
-          </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="contrib-amount">Monto</Label>
+          <MoneyInput
+            id="contrib-amount"
+            value={amount}
+            onChange={setAmount}
+            currencySymbol={currencySymbol(settings.currency)}
+            autoFocus
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="contrib-date">Fecha</Label>
+          <Input
+            id="contrib-date"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </div>
+      </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="contrib-amount">Monto</Label>
-              <MoneyInput
-                id="contrib-amount"
-                value={amount}
-                onChange={setAmount}
-                currencySymbol={currencySymbol(settings.currency)}
-                autoFocus
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="contrib-date">Fecha</Label>
-              <Input
-                id="contrib-date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="contrib-note">Nota (opcional)</Label>
-            <Input
-              id="contrib-note"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              placeholder="Ej. Ahorro del mes"
-            />
-          </div>
-
-          {error ? <p className="text-xs text-destructive">{error}</p> : null}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={submitting} className="gap-2">
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {mode === 'deposit' ? 'Aportar' : 'Retirar'}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <div className="space-y-1.5">
+        <Label htmlFor="contrib-note">Nota (opcional)</Label>
+        <Input
+          id="contrib-note"
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="Ej. Ahorro del mes"
+        />
+      </div>
+    </FormDialog>
   );
 }

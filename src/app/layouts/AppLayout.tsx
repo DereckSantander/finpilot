@@ -4,6 +4,7 @@ import { Sidebar, SidebarNav } from '@/app/layouts/Sidebar';
 import { Topbar } from '@/app/layouts/Topbar';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { QuickAddExpenseDialog } from '@/features/transactions/components/QuickAddExpenseDialog';
+import { OnboardingDialog } from '@/features/onboarding/OnboardingDialog';
 
 /**
  * Layout raíz de la aplicación (architecture.md §6): sidebar persistente en
@@ -41,6 +42,9 @@ export function AppLayout() {
 
       {/* Diálogo global de gasto rápido (accesible desde cualquier ruta). */}
       <QuickAddExpenseDialog />
+
+      {/* Asistente inicial: se muestra solo si `onboardingCompleted` es false. */}
+      <OnboardingDialog />
     </div>
   );
 }

@@ -1,13 +1,4 @@
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -16,6 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { FormDialog } from '@/components/forms/FormDialog';
 import { MoneyInput } from '@/components/forms/MoneyInput';
 import { useSettings } from '@/hooks/useSettings';
 import { currencySymbol } from '@/lib/currency';
@@ -86,75 +78,55 @@ export function BudgetDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? 'Editar presupuesto' : 'Nuevo presupuesto'}</DialogTitle>
-          <DialogDescription>
-            Define un límite mensual y controla cuánto te queda disponible.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form
-          className="space-y-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void submit();
-          }}
-        >
-          <div className="space-y-1.5">
-            <Label htmlFor="budget-category">Categoría</Label>
-            {isEdit ? (
-              <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm">
-                {editing?.category?.name ?? 'Presupuesto general'}
-              </div>
-            ) : (
-              <Select value={categoryId} onValueChange={setCategoryId}>
-                <SelectTrigger id="budget-category">
-                  <SelectValue placeholder="Elegir…" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={GENERAL}>Presupuesto general (todo el mes)</SelectItem>
-                  {availableCategories.map((category) => (
-                    <SelectItem key={category.id} value={category.id}>
-                      <span className="flex items-center gap-2">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: category.color }}
-                        />
-                        {category.name}
-                      </span>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={isEdit ? 'Editar presupuesto' : 'Nuevo presupuesto'}
+      description="Define un límite mensual y controla cuánto te queda disponible."
+      submitLabel={isEdit ? 'Guardar' : 'Crear presupuesto'}
+      submitting={submitting}
+      error={error}
+      onSubmit={() => void submit()}
+    >
+      <div className="space-y-1.5">
+        <Label htmlFor="budget-category">Categoría</Label>
+        {isEdit ? (
+          <div className="flex h-10 items-center rounded-md border border-input bg-muted/40 px-3 text-sm">
+            {editing?.category?.name ?? 'Presupuesto general'}
           </div>
+        ) : (
+          <Select value={categoryId} onValueChange={setCategoryId}>
+            <SelectTrigger id="budget-category">
+              <SelectValue placeholder="Elegir…" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={GENERAL}>Presupuesto general (todo el mes)</SelectItem>
+              {availableCategories.map((category) => (
+                <SelectItem key={category.id} value={category.id}>
+                  <span className="flex items-center gap-2">
+                    <span
+                      className="h-2.5 w-2.5 rounded-full"
+                      style={{ backgroundColor: category.color }}
+                    />
+                    {category.name}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="budget-amount">Monto mensual</Label>
-            <MoneyInput
-              id="budget-amount"
-              value={amount}
-              onChange={setAmount}
-              currencySymbol={currencySymbol(settings.currency)}
-              autoFocus
-            />
-          </div>
-
-          {error ? <p className="text-xs text-destructive">{error}</p> : null}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={submitting} className="gap-2">
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {isEdit ? 'Guardar' : 'Crear presupuesto'}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <div className="space-y-1.5">
+        <Label htmlFor="budget-amount">Monto mensual</Label>
+        <MoneyInput
+          id="budget-amount"
+          value={amount}
+          onChange={setAmount}
+          currencySymbol={currencySymbol(settings.currency)}
+          autoFocus
+        />
+      </div>
+    </FormDialog>
   );
 }

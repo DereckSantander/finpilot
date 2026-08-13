@@ -1,6 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { getSettings, updateSettings, unlinkEmergencyFundGoal } from '@/services/settings.service';
-import { resetDb } from '@/test/seed';
+import {
+  getSettings,
+  updateSettings,
+  unlinkEmergencyFundGoal,
+  completeOnboarding,
+  restartOnboarding,
+} from '@/services/settings.service';
+import { resetDb, patchSettings } from '@/test/seed';
 import { ValidationError } from '@/lib/errors';
 import type { GoalId } from '@/types/ids';
 
@@ -57,6 +63,28 @@ describe('configuración global', () => {
     const settings = await getSettings();
     expect(settings.emergencyFund.linkedGoalId).toBeUndefined();
     expect(settings.emergencyFund.targetMonths).toEqual([3, 6, 12]);
+  });
+
+  it('completeOnboarding marca la bandera sin tocar el resto', async () => {
+    await patchSettings({ onboardingCompleted: false });
+    await updateSettings({ currency: 'EUR', autoBackup: { enabled: true } });
+
+    await completeOnboarding();
+
+    const settings = await getSettings();
+    expect(settings.onboardingCompleted).toBe(true);
+    // Doble función: también es el test de regresión del merge anidado.
+    expect(settings.currency).toBe('EUR');
+    expect(settings.autoBackup).toEqual({ enabled: true, frequencyDays: 7, keep: 5 });
+  });
+
+  it('completeOnboarding es idempotente y restartOnboarding lo revierte', async () => {
+    await completeOnboarding();
+    await completeOnboarding();
+    expect((await getSettings()).onboardingCompleted).toBe(true);
+
+    await restartOnboarding();
+    expect((await getSettings()).onboardingCompleted).toBe(false);
   });
 
   it('rechaza valores inválidos sin escribir nada', async () => {

@@ -1,14 +1,7 @@
 import { useState } from 'react';
-import { Loader2, ShieldCheck } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import { ShieldCheck } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { FormDialog } from '@/components/forms/FormDialog';
 import { MoneyInput } from '@/components/forms/MoneyInput';
 import { useSettings } from '@/hooks/useSettings';
 import { currencySymbol } from '@/lib/currency';
@@ -61,58 +54,40 @@ export function EmergencyFundSetupDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ShieldCheck className="h-5 w-5 text-warning" />
-            Crear fondo de emergencia
-          </DialogTitle>
-          <DialogDescription>
-            Un colchón para imprevistos. Se recomienda cubrir varios meses de gastos.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void submit();
-          }}
-        >
-          <div className="space-y-1.5">
-            <Label htmlFor="ef-target">Objetivo</Label>
-            <MoneyInput
-              id="ef-target"
-              value={target}
-              onChange={setTarget}
-              currencySymbol={currencySymbol(settings.currency)}
-              autoFocus
-            />
-            {recommended > 0 ? (
-              <button
-                type="button"
-                onClick={() => setTarget(recommended)}
-                className="text-xs font-medium text-primary hover:underline"
-              >
-                Usar objetivo recomendado
-              </button>
-            ) : null}
-          </div>
-
-          {error ? <p className="text-xs text-destructive">{error}</p> : null}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={submitting} className="gap-2">
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Crear fondo
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title={
+        <span className="flex items-center gap-2">
+          <ShieldCheck className="h-5 w-5 text-warning" />
+          Crear fondo de emergencia
+        </span>
+      }
+      description="Un colchón para imprevistos. Se recomienda cubrir varios meses de gastos."
+      submitLabel="Crear fondo"
+      submitting={submitting}
+      error={error}
+      onSubmit={() => void submit()}
+    >
+      <div className="space-y-1.5">
+        <Label htmlFor="ef-target">Objetivo</Label>
+        <MoneyInput
+          id="ef-target"
+          value={target}
+          onChange={setTarget}
+          currencySymbol={currencySymbol(settings.currency)}
+          autoFocus
+        />
+        {recommended > 0 ? (
+          <button
+            type="button"
+            onClick={() => setTarget(recommended)}
+            className="text-xs font-medium text-primary hover:underline"
+          >
+            Usar objetivo recomendado
+          </button>
+        ) : null}
+      </div>
+    </FormDialog>
   );
 }

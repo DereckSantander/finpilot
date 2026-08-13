@@ -52,12 +52,12 @@ las decisiones formales (ADR) en [`decisions.md`](./decisions.md).
 | Gráficos | **Chart.js** + `react-chartjs-2` | Solicitado. Wrapper React idiomático. |
 | PWA | **vite-plugin-pwa** (Workbox) | Genera SW, manifest, precache del app-shell, prompt de actualización. |
 | Enrutado | **React Router v6** | Estándar de facto, rutas anidadas, _lazy loading_ por ruta. |
-| Formularios | **React Hook Form** + **Zod** (`@hookform/resolvers`) | Rendimiento (uncontrolled), validación declarativa reutilizada como esquema de dominio. |
+| Formularios | **Zod** en el service + `useState` en el diálogo; **React Hook Form** solo en `TransactionForm` | La validación de dominio vive en los esquemas Zod (ADR-0003). Generalizar RHF a todos los formularios sigue pendiente. |
 | Estado UI efímero | **Zustand** | Modales, _quick-add_, panel de comandos. Mínimo, sin boilerplate. (El estado de dominio NO vive aquí — vive en Dexie). |
-| Dinero | **dinero.js v2** (o helper propio sobre `bigint`) | Aritmética monetaria segura en enteros, formateo por _locale_. Ver ADR-0004. |
+| Dinero | **Helper propio** (`lib/money.ts`) sobre enteros branded `Cents` | Aritmética monetaria segura sin dependencia externa; formateo con `Intl`. Se descartó dinero.js (DEC-A). Ver ADR-0004. |
 | Fechas | **date-fns** | Modular, inmutable, _tree-shakeable_, soporte de _locale_ es/en. |
 | Iconos | **lucide-react** | Set usado por shadcn/ui, consistente y ligero. |
-| Animaciones | **Framer Motion** + `tailwindcss-animate` | Transiciones suaves de página/lista; `tailwindcss-animate` para micro-interacciones de shadcn. |
+| Animaciones | **`tailwindcss-animate`** | Micro-interacciones de shadcn y transiciones de diálogo. Se descartó Framer Motion (DEC-B): no hizo falta. |
 | IDs | **nanoid** | IDs cortos, URL-safe, sin dependencia de crypto pesada. |
 | Export Excel | **SheetJS (xlsx)** | Estándar para `.xlsx` en cliente. |
 | Export PDF | **jsPDF** + `jspdf-autotable` | Generación de PDF y tablas en cliente, sin servidor. |
@@ -130,7 +130,7 @@ finpilot/
     │   └── seed.ts             # Categorías/métodos de pago por defecto
     │
     ├── services/              # Lógica de dominio y acceso a datos (por dominio)
-    │   ├── ledger/                 # ADR-0010: foto única de los datos primarios
+    │   ├── ledger/                 # ADR-0013: foto única de los datos primarios
     │   │   ├── types.ts            #   Ledger, LedgerIndex, Derivation, LedgerScope
     │   │   ├── load.ts             #   loadLedger() + índices derivados
     │   │   └── adapt.ts            #   fromLedger(): derivación → query reactiva
@@ -178,7 +178,7 @@ finpilot/
     │   ├── format.ts         # formateo de números, %, etc.
     │   ├── calc/             # fórmulas financieras puras (interés compuesto…)
     │   ├── insights/         # motor de reglas (engine + rules/)
-    │   ├── repository/       # ADR-0011: buildPatch() para updates parciales
+    │   ├── repository/       # ADR-0014: buildPatch() para updates parciales
     │   ├── errors.ts         # jerarquía AppError
     │   ├── handle-error.ts   # sumidero único de errores hacia la UI
     │   ├── validation/       # esquemas Zod compartidos
@@ -196,7 +196,9 @@ finpilot/
     │   └── config.ts         # nombre app, versión de esquema, límites
     │
     │   (los `defaults` de Chart.js viven hoy en components/charts/setup.ts;
-    │    unificarlos en un config/chart.ts sigue pendiente)
+    ├── config/              # Configuración de librerías
+    │   └── chart.ts          # opciones compartidas de Chart.js (ejes, tooltip)
+    │                         # (el registro y los defaults siguen en charts/setup.ts)
     │
     └── styles/
         ├── globals.css       # Tailwind base + CSS vars de tema
@@ -312,9 +314,14 @@ _lógica_ se descompone. La lógica va a un hook; el _layout_ queda declarativo.
 - **De UI:** `useTheme()`, `useMediaQuery()`, `useDebouncedValue()`, `useQuickAdd()` (Zustand).
   La confirmación se resuelve con el componente `components/common/ConfirmDialog.tsx`, no con
   un hook `useConfirm()` basado en promesas.
-- **De formularios:** _pendiente._ Hoy solo `TransactionForm` usa React Hook Form; los demás
-  diálogos manejan el estado campo a campo con `useState` y validan en el service vía Zod.
-  Unificarlos en un `useEntityForm()` (RHF + resolver Zod) está identificado pero no hecho.
+- **De gráficos:** `useChartConfig(build, deps)` memoiza la configuración de Chart.js añadiendo
+  el tema a las dependencias. `themeColor()` lee variables CSS, una dependencia que el linter no
+  puede ver; concentrarla aquí redujo de 15 a 1 los `eslint-disable` de `exhaustive-deps`.
+- **De formularios:** el andamiaje común (cabecera, `<form>`, error, pie Cancelar/Guardar) vive en
+  `components/forms/FormDialog.tsx`, que usan 12 de los 13 diálogos. `TransactionDialog` queda
+  fuera a propósito: solo envuelve a `TransactionForm`, que ya gestiona su propio envío.
+  El estado sigue siendo `useState` campo a campo y la validación, Zod en el service; unificarlo
+  en un `useEntityForm()` (RHF + resolver Zod) está identificado pero **no hecho**.
 
 Regla: **un hook por preocupación**. Los hooks de datos no renderizan; los componentes no
 consultan la DB directamente.

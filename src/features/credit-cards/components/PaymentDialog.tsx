@@ -1,15 +1,7 @@
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FormDialog } from '@/components/forms/FormDialog';
 import { MoneyInput } from '@/components/forms/MoneyInput';
 import { useSettings } from '@/hooks/useSettings';
 import { currencySymbol } from '@/lib/currency';
@@ -50,69 +42,51 @@ export function PaymentDialog({ cardId, suggestedAmount, open, onOpenChange }: P
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Registrar pago</DialogTitle>
-          <DialogDescription>Registra un abono a esta tarjeta.</DialogDescription>
-        </DialogHeader>
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Registrar pago"
+      description="Registra un abono a esta tarjeta."
+      submitLabel="Registrar pago"
+      submitting={submitting}
+      error={error}
+      onSubmit={() => void submit()}
+    >
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="pago-amount">Monto</Label>
+          <MoneyInput
+            id="pago-amount"
+            value={amount}
+            onChange={setAmount}
+            currencySymbol={currencySymbol(settings.currency)}
+            autoFocus
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pago-date">Fecha</Label>
+          <Input
+            id="pago-date"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </div>
+      </div>
 
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void submit();
-          }}
+      {suggestedAmount > 0 ? (
+        <button
+          type="button"
+          onClick={() => setAmount(suggestedAmount)}
+          className="text-xs font-medium text-primary hover:underline"
         >
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="pago-amount">Monto</Label>
-              <MoneyInput
-                id="pago-amount"
-                value={amount}
-                onChange={setAmount}
-                currencySymbol={currencySymbol(settings.currency)}
-                autoFocus
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="pago-date">Fecha</Label>
-              <Input
-                id="pago-date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
-          </div>
-
-          {suggestedAmount > 0 ? (
-            <button
-              type="button"
-              onClick={() => setAmount(suggestedAmount)}
-              className="text-xs font-medium text-primary hover:underline"
-            >
-              Pagar el total:{' '}
-              {formatMoney(suggestedAmount, {
-                currency: settings.currency,
-                locale: settings.locale,
-              })}
-            </button>
-          ) : null}
-
-          {error ? <p className="text-xs text-destructive">{error}</p> : null}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={submitting} className="gap-2">
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Registrar pago
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+          Pagar el total:{' '}
+          {formatMoney(suggestedAmount, {
+            currency: settings.currency,
+            locale: settings.locale,
+          })}
+        </button>
+      ) : null}
+    </FormDialog>
   );
 }

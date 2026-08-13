@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import { MoneyInput } from '@/components/forms/MoneyInput';
 import { useSettings } from '@/hooks/useSettings';
 import { handleError } from '@/lib/handle-error';
 import { currencySymbol } from '@/lib/currency';
-import { updateSettings } from '@/services/settings.service';
+import { restartOnboarding, updateSettings } from '@/services/settings.service';
 import { CURRENCIES } from '@/constants/currencies';
 import { SCHEMA_VERSION } from '@/constants/config';
 import type { Cents } from '@/types/money';
@@ -49,6 +49,14 @@ export function GeneralSettingsCard() {
     emergencyMonths !== settings.emergencyFund.targetMonths.join(', ') ||
     freqDays !== String(settings.autoBackup.frequencyDays) ||
     keep !== String(settings.autoBackup.keep);
+
+  const replayOnboarding = async () => {
+    try {
+      await restartOnboarding();
+    } catch (err) {
+      handleError(err, 'No se pudo abrir el asistente');
+    }
+  };
 
   const save = async () => {
     const months = Array.from(
@@ -178,7 +186,17 @@ export function GeneralSettingsCard() {
           </div>
         </div>
 
-        <div className="flex justify-end">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-2 text-muted-foreground"
+            onClick={() => void replayOnboarding()}
+          >
+            <Sparkles className="h-4 w-4" />
+            Ver de nuevo el asistente inicial
+          </Button>
+
           <Button onClick={() => void save()} disabled={!dirty || saving} className="gap-2">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
             Guardar cambios

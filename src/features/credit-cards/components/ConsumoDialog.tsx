@@ -1,13 +1,4 @@
 import { useState } from 'react';
-import { Loader2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -17,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { FormDialog } from '@/components/forms/FormDialog';
 import { MoneyInput } from '@/components/forms/MoneyInput';
 import { useCategories } from '@/hooks/useCategories';
 import { usePaymentMethods } from '@/hooks/usePaymentMethods';
@@ -75,87 +67,66 @@ export function ConsumoDialog({ cardId, open, onOpenChange }: ConsumoDialogProps
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Registrar consumo</DialogTitle>
-          <DialogDescription>Añade un cargo a esta tarjeta.</DialogDescription>
-        </DialogHeader>
+    <FormDialog
+      open={open}
+      onOpenChange={onOpenChange}
+      title="Registrar consumo"
+      description="Añade un cargo a esta tarjeta."
+      submitLabel="Registrar consumo"
+      submitting={submitting}
+      error={error}
+      onSubmit={() => void submit()}
+    >
+      <div className="grid grid-cols-2 gap-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="consumo-amount">Monto</Label>
+          <MoneyInput
+            id="consumo-amount"
+            value={amount}
+            onChange={setAmount}
+            currencySymbol={currencySymbol(settings.currency)}
+            autoFocus
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="consumo-date">Fecha</Label>
+          <Input
+            id="consumo-date"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
+        </div>
+      </div>
 
-        <form
-          className="space-y-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void submit();
-          }}
-        >
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="consumo-amount">Monto</Label>
-              <MoneyInput
-                id="consumo-amount"
-                value={amount}
-                onChange={setAmount}
-                currencySymbol={currencySymbol(settings.currency)}
-                autoFocus
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="consumo-date">Fecha</Label>
-              <Input
-                id="consumo-date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
-            </div>
-          </div>
+      <div className="space-y-1.5">
+        <Label htmlFor="consumo-category">Categoría</Label>
+        <Select value={categoryId} onValueChange={setCategoryId}>
+          <SelectTrigger id="consumo-category">
+            <SelectValue placeholder="Elegir…" />
+          </SelectTrigger>
+          <SelectContent>
+            {categories.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                <span className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: c.color }} />
+                  {c.name}
+                </span>
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="consumo-category">Categoría</Label>
-            <Select value={categoryId} onValueChange={setCategoryId}>
-              <SelectTrigger id="consumo-category">
-                <SelectValue placeholder="Elegir…" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    <span className="flex items-center gap-2">
-                      <span
-                        className="h-2.5 w-2.5 rounded-full"
-                        style={{ backgroundColor: c.color }}
-                      />
-                      {c.name}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="consumo-desc">Descripción (opcional)</Label>
-            <Input
-              id="consumo-desc"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Ej. Supermercado"
-            />
-          </div>
-
-          {error ? <p className="text-xs text-destructive">{error}</p> : null}
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={submitting} className="gap-2">
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Registrar consumo
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+      <div className="space-y-1.5">
+        <Label htmlFor="consumo-desc">Descripción (opcional)</Label>
+        <Input
+          id="consumo-desc"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Ej. Supermercado"
+        />
+      </div>
+    </FormDialog>
   );
 }
