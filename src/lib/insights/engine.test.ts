@@ -44,6 +44,13 @@ function baseCtx(overrides: Partial<InsightContext> = {}): InsightContext {
       cardDebt: c(0),
       netWorth: c(0),
       transactionsCount: 10,
+      components: {
+        lifetimeIncome: c(100_000),
+        lifetimeExpense: c(60_000),
+        cardConsumos: c(0),
+        nonCardExpense: c(60_000),
+        cardPayments: c(0),
+      },
     },
     trend: [
       trendPoint('may', 100_000, 40_000),

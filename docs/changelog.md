@@ -6,6 +6,59 @@
 
 ## [Unreleased]
 
+### Added — Los KPIs del dashboard explican de dónde salen · 2026-08-20
+
+- Las **nueve tarjetas del dashboard** (patrimonio, disponible, ahorrado, ingresos, gastos y
+  balance del mes, tasa de ahorro, fondo de emergencia y utilización de tarjetas) son ahora
+  pulsables y abren un **detalle del cálculo**: la fórmula, las partidas que la componen con su
+  operador y las reglas que no se ven en la cifra (por qué un consumo con tarjeta no resta del
+  disponible, por qué el gasto medio promedia meses completos, por qué el total ahorrado incluye
+  las metas archivadas…).
+- `deriveDashboardMetrics` expone las **magnitudes intermedias** del cálculo en
+  `metrics.components` (ingresos y gastos de toda la historia, consumos con tarjeta, gasto sin
+  tarjeta y pagos de tarjeta). El desglose se lee de ahí en vez de recalcularse en la vista, que
+  es justo lo que produjo las discrepancias de la auditoría de julio.
+- Nuevos: `features/dashboard/lib/kpiExplain.ts` (puro: construye el desglose a partir de las
+  métricas ya derivadas), `KpiDetailDialog` y `ExplainableCard` (tarjeta pulsable con soporte de
+  teclado y nombre accesible; el indicador es un `<button>`, no un `div` con `onClick`).
+- Tests (8 casos): las filas del desglose **reproducen aritméticamente** el KPI que explican, de
+  modo que un cambio futuro en la fórmula que no actualice la explicación rompe la prueba.
+
+### Fixed — Las pestañas de Estadísticas se salían de su caja · 2026-08-20
+
+- Con ocho pestañas, la segunda fila (Métodos, Metas, Tarjetas, Proyecciones) se dibujaba fuera
+  del fondo gris y quedaba por debajo del contenido siguiente: `TabsList` trae `h-10`, una altura
+  fija pensada para una sola fila, y `flex-wrap` no la ensancha. Se pasa a `h-auto`.
+
+### Added — Sistema de gráficos y de diálogos de formulario · 2026-08-13
+
+- **Configuración central de Chart.js** (`config/chart.ts`, `hooks/useChartOptions`,
+  `constants/palette.ts`): ejes, rejilla, tooltips, leyendas y colores se definen una vez y
+  reaccionan al tema. Los siete componentes de gráfico (`AreaChart`, `BarTrendChart`,
+  `ComparisonBarChart`, `DonutChart`, `CardConsumptionChart`, `GoalContributionsChart`,
+  `GoalProjectionChart`, `ScenarioLineChart`) pierden cada uno ~50 líneas de opciones repetidas.
+- **`FormDialog`** + `IconPicker` + `ColorPicker`: los once diálogos de formulario (tarjetas,
+  consumos, pagos, metas, aportes, depósitos, presupuesto, categorías, métodos de pago, fondo de
+  emergencia y gasto rápido) comparten estructura, estado de envío y manejo de errores. Saldo neto
+  del refactor: ~1.450 líneas menos.
+- **Onboarding** (`OnboardingDialog`): asistente de tres pasos en el primer arranque (moneda,
+  idioma, meta de ahorro y objetivos del fondo), omitible y reconfigurable desde Configuración.
+
+### Changed — Ledger: una sola lectura, una sola definición · 2026-08-12
+
+- Nueva capa `services/ledger/` (`load`, `adapt`, `types`): una **foto inmutable** de los datos
+  primarios que se carga una vez y de la que se derivan todas las métricas con funciones puras
+  (`services/derive/`). `metrics.service` pasa a ser una fachada de ~150 líneas (antes ~1.100).
+- Con ello desaparecen los cálculos duplicados que discrepaban: la deuda por tarjeta estaba
+  implementada cuatro veces y el «total ahorrado», dos. Ahora viven en `LedgerIndex`, una sola vez.
+  `insightsQuery()` releía la tabla de movimientos tres o cuatro veces por llamada; ahora la lee una.
+- `LedgerScope` acota qué tablas lee cada consulta y, con ello, ante qué escrituras revalida
+  `useLiveQuery`: sin él, cualquier cambio re-ejecutaba todas las consultas de la app.
+- **Gestión de métodos de pago** en Configuración (`PaymentMethodsCard`) y vínculo con tarjetas;
+  `monthSeries`/`monthsOfYear` unifican los seis bucles de meses que había repartidos.
+- Tests nuevos: `date`, `download`, `cardUtilization`, `ledger`, `goals`, `goalContributions`,
+  `creditCards`, `creditCardPayments`, `paymentMethods`, `attachments`, `backups` y `settings`.
+
 ### Fixed — Auditoría de consistencia de cálculos · 2026-07-14
 
 Revisión de la lógica interna tras detectar cifras que no cuadraban entre pantallas. Siete

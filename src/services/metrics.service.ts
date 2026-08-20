@@ -52,6 +52,7 @@ export type { CardBalance } from '@/services/ledger/types';
 export type { Ledger, LedgerScope, Derivation } from '@/services/ledger/types';
 export type {
   DashboardMetrics,
+  MetricsComponents,
   CategorySlice,
   TrendPoint,
   NetWorthPoint,

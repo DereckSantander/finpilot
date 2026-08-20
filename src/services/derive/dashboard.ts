@@ -9,6 +9,25 @@ import type { GoalRow } from '@/db/schema';
 import type { CategoryId, GoalId } from '@/types/ids';
 import type { TransactionType, YearMonth } from '@/types/common';
 
+/**
+ * Magnitudes intermedias del cálculo de los KPIs. No añaden información nueva
+ * (todas salen de los mismos movimientos), pero se exponen para que el
+ * dashboard pueda **explicar** de dónde sale cada cifra sin volver a derivarla
+ * por su cuenta, que es justo lo que produjo las discrepancias del pasado.
+ */
+export interface MetricsComponents {
+  /** Ingresos de toda la historia. */
+  lifetimeIncome: Cents;
+  /** Gastos de toda la historia (los consumos con tarjeta ya van dentro). */
+  lifetimeExpense: Cents;
+  /** Parte de `lifetimeExpense` pagada con tarjeta de crédito. */
+  cardConsumos: Cents;
+  /** Gastos que sí salieron de la caja (todo menos los consumos con tarjeta). */
+  nonCardExpense: Cents;
+  /** Pagos hechos a las tarjetas. */
+  cardPayments: Cents;
+}
+
 export interface DashboardMetrics {
   yearMonth: YearMonth;
   monthIncome: Cents;
@@ -23,6 +42,7 @@ export interface DashboardMetrics {
   cardDebt: Cents;
   netWorth: Cents;
   transactionsCount: number;
+  components: MetricsComponents;
 }
 
 export interface CategorySlice {
@@ -96,6 +116,13 @@ export function deriveDashboardMetrics(ledger: Ledger, yearMonth: YearMonth): Da
     cardDebt,
     netWorth,
     transactionsCount: ledger.transactions.length,
+    components: {
+      lifetimeIncome,
+      lifetimeExpense,
+      cardConsumos,
+      nonCardExpense,
+      cardPayments: cardPagos,
+    },
   };
 }
 

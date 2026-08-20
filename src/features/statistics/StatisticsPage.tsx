@@ -76,7 +76,12 @@ export function StatisticsPage() {
       />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)}>
-        <TabsList className="flex w-full flex-wrap justify-start">
+        {/*
+          `h-auto`: `TabsList` trae una altura fija de 10 (`h-10`) pensada para
+          una sola fila. Con ocho pestañas y `flex-wrap`, la segunda fila se
+          salía de la caja gris y quedaba por debajo del contenido siguiente.
+        */}
+        <TabsList className="flex h-auto w-full flex-wrap justify-start gap-1">
           {TABS.map((t) => (
             <TabsTrigger key={t.value} value={t.value}>
               {t.label}
